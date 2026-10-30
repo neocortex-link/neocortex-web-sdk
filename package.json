@@ -1,0 +1,93 @@
+{
+  "name": "@neocortex-link/web",
+  "version": "0.1.0",
+  "description": "Neocortex Web SDK: a secure server proxy, a browser client for smart characters, group chat and quizzes, and a Web Components UI kit.",
+  "license": "UNLICENSED",
+  "author": "Neocortex",
+  "homepage": "https://neocortex.link",
+  "keywords": [
+    "neocortex",
+    "ai",
+    "npc",
+    "characters",
+    "chatbot",
+    "tts",
+    "stt",
+    "web-components",
+    "sdk"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "./dist/ui/auto.js"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./server": {
+      "import": {
+        "types": "./dist/server/index.d.ts",
+        "default": "./dist/server/index.js"
+      },
+      "require": {
+        "types": "./dist/server/index.d.cts",
+        "default": "./dist/server/index.cjs"
+      }
+    },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "default": "./dist/client/index.js"
+    },
+    "./ui": {
+      "types": "./dist/ui/index.d.ts",
+      "default": "./dist/ui/index.js"
+    },
+    "./ui/auto": {
+      "types": "./dist/ui/auto.d.ts",
+      "default": "./dist/ui/auto.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "playground": "tsx playground/server.ts",
+    "check": "npm run typecheck && npm run lint && npm test && npm run build",
+    "prepublishOnly": "npm run check"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.0.0",
+    "eslint": "^10.14.0",
+    "globals": "^16.0.0",
+    "happy-dom": "^21.0.4",
+    "tsup": "^9.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.72.1",
+    "vite": "^7.0.0",
+    "vitest": "^5.0.5"
+  }
+}

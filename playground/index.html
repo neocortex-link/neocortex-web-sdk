@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Neocortex Web SDK Playground</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <strong>Neocortex</strong> <span>Web SDK playground</span>
+        <span id="mode" class="mode">…</span>
+      </div>
+      <div class="topbar-controls">
+        <label class="user">
+          Signed in as
+          <input id="user" type="text" spellcheck="false" autocomplete="off" />
+        </label>
+        <neocortex-usage-badge id="usage"></neocortex-usage-badge>
+      </div>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="Playground sections">
+      <button role="tab" data-tab="chat" aria-selected="true">Chat</button>
+      <button role="tab" data-tab="group">Group</button>
+      <button role="tab" data-tab="quiz">Quiz</button>
+      <button role="tab" data-tab="components">Components</button>
+      <button role="tab" data-tab="api">Raw API</button>
+      <button role="tab" data-tab="security">Security</button>
+    </nav>
+
+    <main>
+      <div class="content">
+        <section id="tab-chat" role="tabpanel" class="tab active">
+          <div class="toolbar">
+            <label>Character <select id="chat-character"></select></label>
+            <label><input id="chat-voice" type="checkbox" /> Voice replies</label>
+            <label><input id="chat-ptt" type="checkbox" /> Push to talk</label>
+          </div>
+          <div class="split">
+            <neocortex-chat id="chat" heading="Chat"></neocortex-chat>
+            <aside class="log-panel">
+              <div class="log-head">
+                <h3>Events</h3>
+                <button id="chat-log-clear" type="button">Clear</button>
+              </div>
+              <p class="hint">Ask the character to "open the door" to see a registered action fire.</p>
+              <ol id="chat-log" class="log"></ol>
+            </aside>
+          </div>
+        </section>
+
+        <section id="tab-group" role="tabpanel" class="tab">
+          <div class="toolbar">
+            <span>Cast</span>
+            <div id="group-cast" class="cast"></div>
+            <label><input id="group-voice" type="checkbox" /> Voice replies</label>
+          </div>
+          <neocortex-group-chat id="group" heading="Group chat"></neocortex-group-chat>
+        </section>
+
+        <section id="tab-quiz" role="tabpanel" class="tab">
+          <div class="toolbar">
+            <label>Host <select id="quiz-character"></select></label>
+            <label>Question set <input id="quiz-set" type="text" spellcheck="false" /></label>
+            <label><input id="quiz-voice" type="checkbox" /> Voice</label>
+          </div>
+          <neocortex-quiz id="quiz" heading="Quiz"></neocortex-quiz>
+        </section>
+
+        <section id="tab-components" role="tabpanel" class="tab">
+          <div class="grid">
+            <article class="card">
+              <h3>Microphone</h3>
+              <p class="hint">Click to listen; it stops after a pause. Toggle push-to-talk to hold instead.</p>
+              <div class="row">
+                <neocortex-mic-button id="mic"></neocortex-mic-button>
+                <neocortex-mic-select for="mic"></neocortex-mic-select>
+                <label><input id="mic-ptt" type="checkbox" /> Push to talk</label>
+              </div>
+              <div id="mic-output" class="row"></div>
+            </article>
+            <article class="card">
+              <h3>Messages</h3>
+              <neocortex-chat-panel id="panel" empty-text="Nothing yet" style="height: 14rem"></neocortex-chat-panel>
+              <div class="row">
+                <button id="panel-add" type="button">Add sample messages</button>
+                <button id="panel-think" type="button">Toggle thinking</button>
+                <button id="panel-clear" type="button">Clear</button>
+              </div>
+            </article>
+            <article class="card">
+              <h3>Text input</h3>
+              <neocortex-text-input id="text-input" placeholder="Type and press Enter"></neocortex-text-input>
+              <p id="text-output" class="hint">Fires <code>nc-send</code>.</p>
+            </article>
+            <article class="card">
+              <h3>Thinking indicator</h3>
+              <neocortex-thinking active></neocortex-thinking>
+            </article>
+          </div>
+        </section>
+
+        <section id="tab-api" role="tabpanel" class="tab">
+          <p class="hint">Requests go to the proxy at <code>/api/neocortex</code>, exactly as SDK code sends them. Session ids and speech tokens in responses are the proxy's signed wrappers.</p>
+          <div class="api">
+            <div class="api-form">
+              <label>Endpoint
+                <select id="api-endpoint"></select>
+              </label>
+              <textarea id="api-body" spellcheck="false" rows="12"></textarea>
+              <div class="row">
+                <button id="api-send" class="primary" type="button">Send</button>
+                <span id="api-status" class="status"></span>
+              </div>
+            </div>
+            <div class="api-result">
+              <audio id="api-audio" controls hidden></audio>
+              <pre id="api-response" class="code"></pre>
+            </div>
+          </div>
+        </section>
+
+        <section id="tab-security" role="tabpanel" class="tab">
+          <div class="toolbar">
+            <button id="sec-run" class="primary" type="button">Run all checks</button>
+            <span id="sec-summary" class="status"></span>
+          </div>
+          <p class="hint">Each check sends the request an attacker would, and passes when the proxy refuses it. The rate-limit check runs last and uses up this user's allowance for a minute.</p>
+          <table class="checks">
+            <thead><tr><th>Check</th><th>Expected</th><th>Got</th><th></th></tr></thead>
+            <tbody id="sec-rows"></tbody>
+          </table>
+        </section>
+      </div>
+
+      <aside class="theme" aria-label="Theme">
+        <h3>Theme</h3>
+        <label>Accent <input id="t-accent" type="color" value="#f59e0b" /></label>
+        <label>Character bubble <input id="t-bubble" type="color" value="#1f1f1f" /></label>
+        <label>Radius <input id="t-radius" type="range" min="0" max="24" value="14" /></label>
+        <label>Scheme
+          <select id="t-scheme"><option value="">Auto</option><option value="light">Light</option><option value="dark">Dark</option></select>
+        </label>
+        <label><input id="t-rtl" type="checkbox" /> Right-to-left</label>
+        <pre id="t-css" class="code small"></pre>
+      </aside>
+    </main>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
