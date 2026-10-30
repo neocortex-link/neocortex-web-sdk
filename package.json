@@ -1,6 +1,6 @@
 {
   "name": "@neocortex-link/web",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Neocortex Web SDK: a secure server proxy, a browser client for smart characters, group chat and quizzes, and a Web Components UI kit.",
   "license": "Apache-2.0",
   "author": "Neocortex",

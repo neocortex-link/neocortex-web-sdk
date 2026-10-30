@@ -12,10 +12,10 @@ export class NeocortexThinking extends NeocortexElement {
       .dots { display: inline-flex; gap: 4px; padding: 0.7em 0.9em; border-radius: var(--_radius);
         background: var(--_character-bubble); }
       .dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--_character-text); opacity: 0.4;
-        animation: nc-bounce 1.2s infinite ease-in-out; }
+        animation: nx-bounce 1.2s infinite ease-in-out; }
       .dots span:nth-child(2) { animation-delay: 0.15s; }
       .dots span:nth-child(3) { animation-delay: 0.3s; }
-      @keyframes nc-bounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.4; } 40% { transform: translateY(-4px); opacity: 1; } }
+      @keyframes nx-bounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.4; } 40% { transform: translateY(-4px); opacity: 1; } }
       `,
       `<div class="dots" part="dots" role="status"><span></span><span></span><span></span><span class="sr-only"></span></div>`,
     );
@@ -52,13 +52,13 @@ export class NeocortexMessage extends NeocortexElement {
       :host([sender="player"]) { align-items: flex-end; }
       :host([sender="notice"]) { align-items: center; }
       .name { font-size: 0.75em; color: var(--_muted); margin: 0 0.6em 0.2em; }
-      :host([hue]) .name { color: hsl(var(--nc-hue) 60% 45%); }
+      :host([hue]) .name { color: hsl(var(--nx-hue) 60% 45%); }
       :host([sender="player"]) .name, :host(:not([name])) .name { display: none; }
       .bubble { max-width: min(80%, 34rem); padding: 0.6em 0.9em; border-radius: var(--_radius);
         line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere;
         background: var(--_character-bubble); color: var(--_character-text);
         border-end-start-radius: calc(var(--_radius) * 0.3); }
-      :host([hue]) .bubble { box-shadow: inset 3px 0 0 hsl(var(--nc-hue) 70% 55%); }
+      :host([hue]) .bubble { box-shadow: inset 3px 0 0 hsl(var(--nx-hue) 70% 55%); }
       :host([sender="player"]) .bubble { background: var(--_player-bubble); color: var(--_player-text);
         border-end-start-radius: var(--_radius); border-end-end-radius: calc(var(--_radius) * 0.3); }
       :host([sender="notice"]) .bubble { background: transparent; color: var(--_danger); font-size: 0.85em;
@@ -81,7 +81,7 @@ export class NeocortexMessage extends NeocortexElement {
     if (emotion && emotion !== "neutral") bubble.title = emotion;
     else bubble.removeAttribute("title");
     const hue = this.getAttribute("hue");
-    if (hue) this.style.setProperty("--nc-hue", hue);
+    if (hue) this.style.setProperty("--nx-hue", hue);
   }
 }
 
@@ -153,7 +153,7 @@ export class NeocortexChatPanel extends NeocortexElement {
   }
 }
 
-/** A text box with a send button. Fires `nc-send` with `{ text }`. */
+/** A text box with a send button. Fires `nx-send` with `{ text }`. */
 export class NeocortexTextInput extends NeocortexElement {
   static observedAttributes = ["placeholder", "disabled", "maxlength"];
 
@@ -177,7 +177,7 @@ export class NeocortexTextInput extends NeocortexElement {
       const input = this.$<HTMLInputElement>("input");
       const text = input.value.trim();
       if (!text || this.hasAttribute("disabled")) return;
-      if (this.fire("nc-send", { text })) input.value = "";
+      if (this.fire("nx-send", { text })) input.value = "";
     });
     this.update();
   }

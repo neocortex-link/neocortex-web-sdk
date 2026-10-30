@@ -2,6 +2,25 @@
 
 All notable changes to this package are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-10-30
+
+### Changed (breaking)
+- **The Neocortex shorthand is now `nx` everywhere, replacing `nc`.** Rename these in your code:
+  - **CSS custom properties:** `--nc-*` is now `--nx-*`. For example, `--nc-accent` becomes `--nx-accent`.
+  - **DOM events:** `nc-*` is now `nx-*`. The full list:
+    - `nx-line`
+    - `nx-action`
+    - `nx-emotion`
+    - `nx-response`
+    - `nx-reply-finished`
+    - `nx-error`
+    - `nx-send`
+    - `nx-recorded`
+    - `nx-turn`
+    - `nx-finished`
+    - `nx-usage`
+  - **Proxy token prefixes:** `ncs_` is now `nxs_`, and `ncq_` is now `nxq_`. Conversations stored in a browser from 0.1.0 start fresh once, and quizzes in progress need restarting.
+
 ## [0.1.0] - 2026-10-30
 
 First stable release, now licensed under Apache-2.0. Everything listed under 0.1.0-rc.0 below is included, with these changes from a pre-release audit.

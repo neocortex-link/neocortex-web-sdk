@@ -21,23 +21,23 @@ export function setDefaultClient(client: NeocortexClient | null): void {
   defaultClient = client;
 }
 
-/** Design tokens. Every value can be overridden from outside with the `--nc-*` custom property. */
+/** Design tokens. Every value can be overridden from outside with the `--nx-*` custom property. */
 export const BASE_CSS = /* css */ `
 :host {
-  --_accent: var(--nc-accent, #f59e0b);
-  --_accent-text: var(--nc-accent-text, #1f1f1f);
-  --_bg: var(--nc-bg, #ffffff);
-  --_surface: var(--nc-surface, #f5f5f4);
-  --_text: var(--nc-text, #1c1917);
-  --_muted: var(--nc-muted, #78716c);
-  --_border: var(--nc-border, #e7e5e4);
-  --_player-bubble: var(--nc-player-bubble, var(--_accent));
-  --_player-text: var(--nc-player-text, var(--_accent-text));
-  --_character-bubble: var(--nc-character-bubble, #1f1f1f);
-  --_character-text: var(--nc-character-text, #fafaf9);
-  --_danger: var(--nc-danger, #dc2626);
-  --_radius: var(--nc-radius, 14px);
-  --_font: var(--nc-font, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+  --_accent: var(--nx-accent, #f59e0b);
+  --_accent-text: var(--nx-accent-text, #1f1f1f);
+  --_bg: var(--nx-bg, #ffffff);
+  --_surface: var(--nx-surface, #f5f5f4);
+  --_text: var(--nx-text, #1c1917);
+  --_muted: var(--nx-muted, #78716c);
+  --_border: var(--nx-border, #e7e5e4);
+  --_player-bubble: var(--nx-player-bubble, var(--_accent));
+  --_player-text: var(--nx-player-text, var(--_accent-text));
+  --_character-bubble: var(--nx-character-bubble, #1f1f1f);
+  --_character-text: var(--nx-character-text, #fafaf9);
+  --_danger: var(--nx-danger, #dc2626);
+  --_radius: var(--nx-radius, 14px);
+  --_font: var(--nx-font, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   --_focus: 0 0 0 3px color-mix(in srgb, var(--_accent) 45%, transparent);
   font-family: var(--_font);
   color: var(--_text);
@@ -45,21 +45,21 @@ export const BASE_CSS = /* css */ `
 }
 @media (prefers-color-scheme: dark) {
   :host(:not([theme="light"])) {
-    --_bg: var(--nc-bg, #121212);
-    --_surface: var(--nc-surface, #1c1c1c);
-    --_text: var(--nc-text, #f5f5f4);
-    --_muted: var(--nc-muted, #a8a29e);
-    --_border: var(--nc-border, #2e2e2e);
-    --_character-bubble: var(--nc-character-bubble, #2a2a2a);
+    --_bg: var(--nx-bg, #121212);
+    --_surface: var(--nx-surface, #1c1c1c);
+    --_text: var(--nx-text, #f5f5f4);
+    --_muted: var(--nx-muted, #a8a29e);
+    --_border: var(--nx-border, #2e2e2e);
+    --_character-bubble: var(--nx-character-bubble, #2a2a2a);
   }
 }
 :host([theme="dark"]) {
-  --_bg: var(--nc-bg, #121212);
-  --_surface: var(--nc-surface, #1c1c1c);
-  --_text: var(--nc-text, #f5f5f4);
-  --_muted: var(--nc-muted, #a8a29e);
-  --_border: var(--nc-border, #2e2e2e);
-  --_character-bubble: var(--nc-character-bubble, #2a2a2a);
+  --_bg: var(--nx-bg, #121212);
+  --_surface: var(--nx-surface, #1c1c1c);
+  --_text: var(--nx-text, #f5f5f4);
+  --_muted: var(--nx-muted, #a8a29e);
+  --_border: var(--nx-border, #2e2e2e);
+  --_character-bubble: var(--nx-character-bubble, #2a2a2a);
 }
 :host([hidden]) { display: none !important; }
 *, *::before, *::after { box-sizing: inherit; }

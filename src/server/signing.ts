@@ -11,8 +11,8 @@
  */
 
 const encoder = new TextEncoder();
-const SESSION_PREFIX = "ncs_";
-const QUIZ_PREFIX = "ncq_";
+const SESSION_PREFIX = "nxs_";
+const QUIZ_PREFIX = "nxq_";
 
 export class Signer {
   private key: Promise<CryptoKey>;

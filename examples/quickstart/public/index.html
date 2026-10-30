@@ -35,9 +35,9 @@
       p { margin: 0.25rem 0 0; color: var(--muted); }
       neocortex-chat {
         height: min(34rem, 70vh);
-        --nc-accent: #d97706;
-        --nc-radius: 16px;
-        --nc-font: system-ui, -apple-system, "Segoe UI", sans-serif;
+        --nx-accent: #d97706;
+        --nx-radius: 16px;
+        --nx-font: system-ui, -apple-system, "Segoe UI", sans-serif;
       }
       .shelf { font: 0.9rem system-ui, sans-serif; color: var(--muted); border-top: 1px solid var(--line); padding-top: 0.75rem; }
       .shelf strong { color: var(--ink); }
@@ -65,7 +65,7 @@
       const lastAction = document.querySelector("#last-action");
 
       // Whatever your character's actions are, they arrive here.
-      chat.addEventListener("nc-action", (event) => {
+      chat.addEventListener("nx-action", (event) => {
         const { action } = event.detail;
         lastAction.textContent = action.targetId ? `${action.name} → ${action.targetId}` : action.name;
       });

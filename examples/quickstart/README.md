@@ -25,7 +25,7 @@ The browser never sees the API key. Every request goes to `/api/neocortex`, wher
 
 ## Make it yours
 
-- **Theme:** change the `--nc-*` variables on `neocortex-chat` in `index.html`.
-- **React to actions:** listen for `nc-action`, or use `chat.agent.registerAction("OPEN_DOOR", ...)`.
+- **Theme:** change the `--nx-*` variables on `neocortex-chat` in `index.html`.
+- **React to actions:** listen for `nx-action`, or use `chat.agent.registerAction("OPEN_DOOR", ...)`.
 - **Use your own login:** replace `visitorFrom` in `server.js` with your session check.
 - **Use a bundler (Vite, Next.js...):** drop the import map and `import "@neocortex-link/web/ui/auto"` directly.

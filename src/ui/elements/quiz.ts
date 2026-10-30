@@ -87,11 +87,11 @@ export class NeocortexQuiz extends NeocortexElement {
       this.setAttribute("state", "playing");
       void this.agent.begin();
     });
-    this.$("neocortex-text-input").addEventListener("nc-send", (event) => {
+    this.$("neocortex-text-input").addEventListener("nx-send", (event) => {
       const { text } = (event as CustomEvent<{ text: string }>).detail;
       this.answer(text, true);
     });
-    this.$("neocortex-mic-button").addEventListener("nc-recorded", async (event) => {
+    this.$("neocortex-mic-button").addEventListener("nx-recorded", async (event) => {
       const { audio } = (event as CustomEvent<{ audio: Blob }>).detail;
       const characterId = this.getAttribute("character-id") ?? "";
       try {
@@ -171,7 +171,7 @@ export class NeocortexQuiz extends NeocortexElement {
       agent.on("hostLine", ({ line }) => {
         this.panel.thinking = false;
         this.panel.addMessage({ sender: "character", text: line.text, emotion: line.emotion });
-        this.fire("nc-line", { line });
+        this.fire("nx-line", { line });
       }),
       agent.on("questionChanged", (question) => this.showQuestion(question)),
       agent.on("expectingChanged", (expecting) => {
@@ -180,17 +180,17 @@ export class NeocortexQuiz extends NeocortexElement {
       agent.on("turn", (turn) => {
         if (turn.progress) this.showProgress(turn.progress.asked, turn.progress.total);
         this.$<HTMLButtonElement>(".hint").disabled = !turn.question?.hasHint && !this.agent.question?.hasHint;
-        this.fire("nc-turn", turn);
+        this.fire("nx-turn", turn);
       }),
       agent.on("leaderboardChanged", (board) => this.showLeaderboard(board)),
       agent.on("finished", (turn) => {
         this.setAttribute("state", "finished");
         this.$(".start").textContent = "Play again";
         this.$(".confirm").hidden = true;
-        this.fire("nc-finished", turn);
+        this.fire("nx-finished", turn);
       }),
       agent.on("error", (error) => {
-        if (this.fire("nc-error", { error })) this.notice(error.message);
+        if (this.fire("nx-error", { error })) this.notice(error.message);
         if (!agent.sessionId) this.setAttribute("state", "idle");
       }),
     ];

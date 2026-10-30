@@ -200,7 +200,7 @@ describe("sessions", () => {
   it("wraps session ids in a token bound to the user", async () => {
     const { call, upstream } = setup();
     const reply = await bodyOf(await call("chat", { body: { characterIds: ["char-a"] } }));
-    expect(reply.sessionId).toMatch(/^ncs_sess-1\./);
+    expect(reply.sessionId).toMatch(/^nxs_sess-1\./);
 
     await call("chat", { body: { characterIds: ["char-a"], sessionId: reply.sessionId } });
     expect((upstream.last()!.body as { sessionId: string }).sessionId).toBe("sess-1");
@@ -321,7 +321,7 @@ describe("quiz", () => {
     expect((await call("quiz", { body: { characterId: "char-a", questionSetId: "set-2" } })).status).toBe(403);
 
     const started = await bodyOf(await call("quiz", { body: { characterId: "char-a", questionSetId: "set-1", playerId: "x" } }));
-    expect(started.sessionId).toMatch(/^ncq_quiz-1\.char-a\./);
+    expect(started.sessionId).toMatch(/^nxq_quiz-1\.char-a\./);
     expect(started.lines[0].speechToken).toBeTruthy();
     expect((upstream.last()!.body as { playerId: string }).playerId).toBe("alice");
 

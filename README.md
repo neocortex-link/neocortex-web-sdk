@@ -123,7 +123,7 @@ import "@neocortex-link/web/ui/auto";
 In plain HTML, load it from a CDN instead:
 
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/npm/@neocortex-link/web@0.1.0/dist/ui/auto.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@neocortex-link/web@0.2.0/dist/ui/auto.js"></script>
 ```
 
 Then place the element anywhere on the page:
@@ -140,8 +140,8 @@ To serve the files yourself instead of from a CDN, map the import with an import
 | `<neocortex-group-chat character-ids="a,b">` | Several characters in one conversation, each in their own colour |
 | `<neocortex-quiz character-id question-set-id>` | A quiz host with questions, options, hints, progress and a leaderboard |
 | `<neocortex-chat-panel>`, `<neocortex-message>` | The message list and bubbles on their own |
-| `<neocortex-text-input>` | A text box that fires `nc-send` |
-| `<neocortex-mic-button push-to-talk>` | A microphone with a level ring and silence countdown. Fires `nc-recorded` |
+| `<neocortex-text-input>` | A text box that fires `nx-send` |
+| `<neocortex-mic-button push-to-talk>` | A microphone with a level ring and silence countdown. Fires `nx-recorded` |
 | `<neocortex-mic-select for="mic-id">` | A microphone picker |
 | `<neocortex-thinking active>` | Typing dots |
 | `<neocortex-usage-badge>` | Shows whether characters are available or out of credits |
@@ -158,14 +158,14 @@ To serve the files yourself instead of from a CDN, map the import with an import
 - `theme="light|dark"`
 
 **Events.** They bubble out of shadow DOM:
-- `nc-line`
-- `nc-action`
-- `nc-emotion`
-- `nc-response`
-- `nc-reply-finished`
-- `nc-error`
+- `nx-line`
+- `nx-action`
+- `nx-emotion`
+- `nx-response`
+- `nx-reply-finished`
+- `nx-error`
 
-Calling `preventDefault()` on `nc-error` suppresses the built-in notice.
+Calling `preventDefault()` on `nx-error` suppresses the built-in notice.
 
 **Act on what characters do:**
 
@@ -178,26 +178,26 @@ chat.agent.registerAction("OPEN_DOOR", () => door.open());
 
 ```css
 neocortex-chat {
-  --nc-accent: #7c3aed;
-  --nc-character-bubble: #1e1b4b;
-  --nc-radius: 20px;
-  --nc-font: "Inter", sans-serif;
+  --nx-accent: #7c3aed;
+  --nx-character-bubble: #1e1b4b;
+  --nx-radius: 20px;
+  --nx-font: "Inter", sans-serif;
   height: 600px;
 }
 neocortex-chat::part(header) { display: none; }
 ```
 
 The other tokens are:
-- `--nc-accent-text`
-- `--nc-bg`
-- `--nc-surface`
-- `--nc-text`
-- `--nc-muted`
-- `--nc-border`
-- `--nc-player-bubble`
-- `--nc-player-text`
-- `--nc-character-text`
-- `--nc-danger`
+- `--nx-accent-text`
+- `--nx-bg`
+- `--nx-surface`
+- `--nx-text`
+- `--nx-muted`
+- `--nx-border`
+- `--nx-player-bubble`
+- `--nx-player-text`
+- `--nx-character-text`
+- `--nx-danger`
 
 Elements follow `prefers-color-scheme` unless given `theme`, and they respect `dir="rtl"`.
 

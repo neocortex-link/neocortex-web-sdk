@@ -104,14 +104,14 @@ $<HTMLInputElement>("#chat-voice").addEventListener("change", (e) => chat.setAtt
 $<HTMLInputElement>("#chat-ptt").addEventListener("change", (e) => chat.toggleAttribute("push-to-talk", (e.target as HTMLInputElement).checked));
 $("#chat-log-clear").addEventListener("click", () => logList.replaceChildren());
 
-chat.addEventListener("nc-line", (e) => {
+chat.addEventListener("nx-line", (e) => {
   const { line, index } = (e as CustomEvent).detail;
   log("line", `#${index} [${line.emotion}] ${line.text}`);
 });
-chat.addEventListener("nc-action", (e) => log("action", JSON.stringify((e as CustomEvent).detail.action)));
-chat.addEventListener("nc-emotion", (e) => log("emotion", (e as CustomEvent).detail.emotion));
-chat.addEventListener("nc-response", (e) => log("response", `session ${String((e as CustomEvent).detail.sessionId).slice(0, 24)}…`));
-chat.addEventListener("nc-error", (e) => {
+chat.addEventListener("nx-action", (e) => log("action", JSON.stringify((e as CustomEvent).detail.action)));
+chat.addEventListener("nx-emotion", (e) => log("emotion", (e as CustomEvent).detail.emotion));
+chat.addEventListener("nx-response", (e) => log("response", `session ${String((e as CustomEvent).detail.sessionId).slice(0, 24)}…`));
+chat.addEventListener("nx-error", (e) => {
   const { error } = (e as CustomEvent).detail;
   log("error", `${error.status} ${error.code ?? ""} ${error.message}`, true);
 });
@@ -163,7 +163,7 @@ $<HTMLInputElement>("#quiz-voice").addEventListener("change", (e) => quiz.setAtt
 
 const mic = $<NeocortexMicButton>("#mic");
 $<HTMLInputElement>("#mic-ptt").addEventListener("change", (e) => mic.toggleAttribute("push-to-talk", (e.target as HTMLInputElement).checked));
-mic.addEventListener("nc-recorded", (e) => {
+mic.addEventListener("nx-recorded", (e) => {
   const { audio } = (e as CustomEvent<{ audio: Blob }>).detail;
   const player = document.createElement("audio");
   player.controls = true;
@@ -184,8 +184,8 @@ $("#panel-add").addEventListener("click", () => {
 });
 $("#panel-think").addEventListener("click", () => (panel.thinking = thinking = !thinking));
 $("#panel-clear").addEventListener("click", () => panel.clear());
-$("#text-input").addEventListener("nc-send", (e) => {
-  $("#text-output").textContent = `nc-send → ${JSON.stringify((e as CustomEvent).detail)}`;
+$("#text-input").addEventListener("nx-send", (e) => {
+  $("#text-output").textContent = `nx-send → ${JSON.stringify((e as CustomEvent).detail)}`;
 });
 
 // ---------------------------------------------------------------------------
@@ -344,7 +344,7 @@ const checks: Check[] = [
   {
     name: "Forged session id",
     expect: "404 session_not_found",
-    run: () => expectRefusal(404, "session_not_found")(post("chat/session", { sessionId: "ncs_real-looking-session.AAAAAAAAAAAAAAAAAAAAAA" })),
+    run: () => expectRefusal(404, "session_not_found")(post("chat/session", { sessionId: "nxs_real-looking-session.AAAAAAAAAAAAAAAAAAAAAA" })),
   },
   {
     name: "Disabled route (/account)",
@@ -440,9 +440,9 @@ function applyTheme() {
   const bubble = $<HTMLInputElement>("#t-bubble").value;
   const radius = `${$<HTMLInputElement>("#t-radius").value}px`;
   const scheme = $<HTMLSelectElement>("#t-scheme").value;
-  rootStyle.setProperty("--nc-accent", accent);
-  rootStyle.setProperty("--nc-character-bubble", bubble);
-  rootStyle.setProperty("--nc-radius", radius);
+  rootStyle.setProperty("--nx-accent", accent);
+  rootStyle.setProperty("--nx-character-bubble", bubble);
+  rootStyle.setProperty("--nx-radius", radius);
   rootStyle.setProperty("--accent", accent);
   if (scheme) document.documentElement.dataset.theme = scheme;
   else delete document.documentElement.dataset.theme;
@@ -451,7 +451,7 @@ function applyTheme() {
     else element.removeAttribute("theme");
   }
   document.documentElement.dir = $<HTMLInputElement>("#t-rtl").checked ? "rtl" : "ltr";
-  $("#t-css").textContent = `neocortex-chat {\n  --nc-accent: ${accent};\n  --nc-character-bubble: ${bubble};\n  --nc-radius: ${radius};\n}`;
+  $("#t-css").textContent = `neocortex-chat {\n  --nx-accent: ${accent};\n  --nx-character-bubble: ${bubble};\n  --nx-radius: ${radius};\n}`;
 }
 for (const id of ["#t-accent", "#t-bubble", "#t-radius", "#t-scheme", "#t-rtl"]) $(id).addEventListener("input", applyTheme);
 applyTheme();

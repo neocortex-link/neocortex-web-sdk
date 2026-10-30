@@ -33,7 +33,7 @@ if (!NEOCORTEX_API_KEY || !NEOCORTEX_CHARACTER_ID) {
 // read by page scripts. Rate limits and credit caps hang off this id.
 // ---------------------------------------------------------------------------
 
-const COOKIE = "nc_visitor";
+const COOKIE = "nx_visitor";
 const secret = process.env.SESSION_SECRET || randomBytes(32).toString("hex");
 
 const sign = (id) => createHmac("sha256", secret).update(id).digest("base64url");

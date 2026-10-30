@@ -27,11 +27,11 @@ describe("elements", () => {
     panel.remove();
   });
 
-  it("text input fires nc-send and clears", () => {
+  it("text input fires nx-send and clears", () => {
     const input = document.createElement("neocortex-text-input");
     document.body.append(input);
     const sent: string[] = [];
-    input.addEventListener("nc-send", (e) => sent.push((e as CustomEvent).detail.text));
+    input.addEventListener("nx-send", (e) => sent.push((e as CustomEvent).detail.text));
     const field = input.shadowRoot!.querySelector("input")!;
     field.value = "  hello  ";
     input.shadowRoot!.querySelector("form")!.dispatchEvent(new Event("submit", { cancelable: true }));
@@ -64,7 +64,7 @@ describe("elements", () => {
     chat.setAttribute("character-id", "char-a");
     document.body.append(chat);
     const lines: string[] = [];
-    chat.addEventListener("nc-line", (e) => lines.push((e as CustomEvent).detail.line.text));
+    chat.addEventListener("nx-line", (e) => lines.push((e as CustomEvent).detail.line.text));
 
     const input = chat.shadowRoot!.querySelector("neocortex-text-input")!;
     input.shadowRoot!.querySelector("input")!.value = "Hi Cora";

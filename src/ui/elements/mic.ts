@@ -5,7 +5,7 @@ const MIC_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="t
 
 /**
  * A microphone button with a live level ring. Click to listen (recording stops
- * after a pause), or hold it with `push-to-talk`. Fires `nc-recorded` with
+ * after a pause), or hold it with `push-to-talk`. Fires `nx-recorded` with
  * `{ audio }`, a WAV Blob ready for `agent.audioToAudio()`.
  */
 export class NeocortexMicButton extends NeocortexElement {
@@ -27,9 +27,9 @@ export class NeocortexMicButton extends NeocortexElement {
     this.applySettings();
     this.unsubscribe = [
       receiver.on("state", (state) => this.updateState(state)),
-      receiver.on("recorded", (audio) => this.fire("nc-recorded", { audio })),
-      receiver.on("permissionDenied", (error) => this.fire("nc-error", { error, reason: "permission" })),
-      receiver.on("error", (error) => this.fire("nc-error", { error })),
+      receiver.on("recorded", (audio) => this.fire("nx-recorded", { audio })),
+      receiver.on("permissionDenied", (error) => this.fire("nx-error", { error, reason: "permission" })),
+      receiver.on("error", (error) => this.fire("nx-error", { error })),
     ];
   }
 

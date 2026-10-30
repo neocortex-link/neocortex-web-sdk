@@ -65,6 +65,6 @@ export class NeocortexUsageBadge extends NeocortexElement {
     this.setAttribute("status", status);
     this.$(".label").textContent =
       status === "empty" ? "Characters resting" : status === "low" ? "Running low" : "Characters available";
-    this.fire("nc-usage", usage);
+    this.fire("nx-usage", usage);
   }
 }

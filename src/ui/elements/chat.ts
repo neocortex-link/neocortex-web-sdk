@@ -26,8 +26,8 @@ footer neocortex-text-input { flex: 1; min-width: 0; }
 /**
  * Shared behaviour of `<neocortex-chat>` and `<neocortex-group-chat>`: wiring a
  * conversation to a panel, a text box and a mic button, loading history, and
- * re-dispatching what happens as DOM events (`nc-line`, `nc-action`, `nc-error`,
- * `nc-response`).
+ * re-dispatching what happens as DOM events (`nx-line`, `nx-action`, `nx-error`,
+ * `nx-response`).
  */
 abstract class ConversationElement<A extends Conversation> extends NeocortexElement {
   static observedAttributes = ["endpoint", "voice", "push-to-talk", "placeholder", "heading", "language"];
@@ -137,17 +137,17 @@ abstract class ConversationElement<A extends Conversation> extends NeocortexElem
     });
     this.$(".reset").addEventListener("click", () => this.reset());
 
-    this.input.addEventListener("nc-send", (event) => {
+    this.input.addEventListener("nx-send", (event) => {
       const { text } = (event as CustomEvent<{ text: string }>).detail;
       this.agent.primeAudio();
       void this.sendText(text);
     });
-    this.mic.addEventListener("nc-recorded", (event) => {
+    this.mic.addEventListener("nx-recorded", (event) => {
       const { audio } = (event as CustomEvent<{ audio: Blob }>).detail;
       this.agent.primeAudio();
       void this.sendAudio(audio);
     });
-    this.mic.addEventListener("nc-error", (event) => {
+    this.mic.addEventListener("nx-error", (event) => {
       const detail = (event as CustomEvent<{ error: Error; reason?: string }>).detail;
       this.panel.addMessage({
         sender: "notice",
@@ -180,14 +180,14 @@ abstract class ConversationElement<A extends Conversation> extends NeocortexElem
           hue: this.showNames ? hueFor(detail.characterId) : undefined,
         });
         if (!this.getAttribute("heading") && !this.showNames) this.$("h2").textContent = detail.name;
-        this.fire("nc-line", detail);
+        this.fire("nx-line", detail);
       }),
-      agent.on("action", (detail) => this.fire("nc-action", detail)),
-      agent.on("emotionChanged", (detail) => this.fire("nc-emotion", detail)),
-      agent.on("response", (response) => this.fire("nc-response", response)),
-      agent.on("replyFinished", (response) => this.fire("nc-reply-finished", response)),
+      agent.on("action", (detail) => this.fire("nx-action", detail)),
+      agent.on("emotionChanged", (detail) => this.fire("nx-emotion", detail)),
+      agent.on("response", (response) => this.fire("nx-response", response)),
+      agent.on("replyFinished", (response) => this.fire("nx-reply-finished", response)),
       agent.on("error", (error) => {
-        if (this.fire("nc-error", { error })) this.panel.addMessage({ sender: "notice", text: friendlyError(error) });
+        if (this.fire("nx-error", { error })) this.panel.addMessage({ sender: "notice", text: friendlyError(error) });
       }),
     ];
 
