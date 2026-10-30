@@ -1,0 +1,15 @@
+{
+  "name": "neocortex-web-quickstart",
+  "private": true,
+  "type": "module",
+  "description": "A minimal site with a Neocortex character, using @neocortex-link/web from npm.",
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@neocortex-link/web": "0.1.0-rc.0"
+  }
+}
