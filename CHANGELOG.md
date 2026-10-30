@@ -4,7 +4,7 @@ All notable changes to this package are documented here. The format follows [Kee
 
 ## [0.1.0-rc.0] - 2026-10-30
 
-First release candidate, published privately for internal testing.
+First release candidate, published on the `rc` tag for early testing.
 
 ### Added
 
