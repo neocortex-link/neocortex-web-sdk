@@ -1,5 +1,5 @@
 import { NeocortexClient } from "../core/client";
-import { NeocortexError } from "../core/errors";
+import { isNeocortexError, NeocortexError } from "../core/errors";
 
 export type ClientSource = {
   /** A configured client. Takes precedence over `endpoint`. */
@@ -13,7 +13,7 @@ export function resolveClient(source: ClientSource): NeocortexClient {
 }
 
 export function toNeocortexError(error: unknown): NeocortexError {
-  if (error instanceof NeocortexError) return error;
+  if (isNeocortexError(error)) return error;
   const message = error instanceof Error ? error.message : String(error);
   return new NeocortexError(message || "Something went wrong.", { status: 0, code: "client_error", cause: error });
 }

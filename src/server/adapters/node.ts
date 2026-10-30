@@ -86,15 +86,25 @@ async function toRequest(req: NodeRequest, signal: AbortSignal): Promise<Request
       body = typeof req.body === "string" || req.body instanceof Uint8Array ? (req.body as BodyInit) : JSON.stringify(req.body);
       headers.delete("content-length");
     } else {
-      const chunks: Uint8Array[] = [];
-      for await (const chunk of req as AsyncIterable<Uint8Array | string>) {
-        chunks.push(typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk);
-      }
-      body = new Blob(chunks as BlobPart[]);
+      // Stream rather than buffer: the handler checks auth, the route and the size
+      // limit first, and reads only as much as it accepts. Node drains whatever is
+      // left once the response ends, without holding it in memory.
+      const iterator = (req as AsyncIterable<Uint8Array | string>)[Symbol.asyncIterator]();
+      body = new ReadableStream<Uint8Array>({
+        async pull(controller) {
+          const { done, value } = await iterator.next();
+          if (done) controller.close();
+          else controller.enqueue(typeof value === "string" ? new TextEncoder().encode(value) : value);
+        },
+        async cancel() {
+          await iterator.return?.();
+        },
+      });
     }
   }
 
-  return new Request(url, { method, headers, body, signal });
+  // `duplex` is required by Node's fetch for a streamed body, and missing from the DOM types.
+  return new Request(url, { method, headers, body, signal, duplex: "half" } as RequestInit);
 }
 
 function isEmptyParsedBody(body: unknown): boolean {

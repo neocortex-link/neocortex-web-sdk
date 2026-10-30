@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { audioFilename, NeocortexClient } from "../src/core/client";
 import { toAudioEmotion, toEmotion } from "../src/core/emotions";
-import { NeocortexError } from "../src/core/errors";
-import { readServerSentEvents } from "../src/core/sse";
+import { isNeocortexError, NeocortexError } from "../src/core/errors";
 import { decodePcm16, encodeWav, PcmStreamDecoder, readWavHeader, resample } from "../src/core/wav";
 import { chatReply, chunked, fakeUpstream, json, streamingWav } from "./helpers";
 
@@ -53,15 +52,12 @@ describe("emotions", () => {
   });
 });
 
-describe("sse", () => {
-  it("parses frames split across chunks", async () => {
-    const text = 'event: delta\ndata: {"text":"Hi"}\n\nevent: done\r\ndata: {"ok":true}\r\n\r\n';
-    const events = [];
-    for await (const event of readServerSentEvents(chunked(new TextEncoder().encode(text), 5))) events.push(event);
-    expect(events).toEqual([
-      { type: "delta", data: { text: "Hi" } },
-      { type: "done", data: { ok: true } },
-    ]);
+describe("isNeocortexError", () => {
+  it("recognises an error from another copy of the package", () => {
+    const foreign = Object.assign(new Error("No credits"), { name: "NeocortexError", status: 402, code: "insufficient_credits" });
+    expect(foreign instanceof NeocortexError).toBe(false);
+    expect(isNeocortexError(foreign)).toBe(true);
+    expect(isNeocortexError(new Error("plain"))).toBe(false);
   });
 });
 

@@ -41,7 +41,7 @@ footer neocortex-text-input { flex: 1 1 12rem; min-width: 0; }
  * ```
  */
 export class NeocortexQuiz extends NeocortexElement {
-  static observedAttributes = ["character-id", "question-set-id", "voice", "heading", "question-count"];
+  static observedAttributes = ["endpoint", "character-id", "question-set-id", "voice", "heading", "question-count"];
 
   private _agent: QuizAgent | null = null;
   private offs: Array<() => void> = [];

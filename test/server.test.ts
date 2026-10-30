@@ -149,10 +149,50 @@ describe("chat", () => {
     expect((upstream.last()!.body as { maxTurns: number }).maxTurns).toBe(6);
   });
 
-  it("filters text before signing it", async () => {
-    const { call } = setup({ filterText: (text) => text.replace("Hello", "Hi") });
+  it("filters text before signing it, including spokenMessage and history", async () => {
+    const { call } = setup(
+      { filterText: (text) => text.replace("Hello", "Hi") },
+      {
+        chat: () =>
+          json({
+            sessionId: "s",
+            messages: [{ characterId: "char-a", name: "Cora", lines: [{ text: "Hello there.", emotion: "HAPPY" }], spokenMessage: "Hello there." }],
+          }),
+        "chat/session": () =>
+          json({
+            sessionId: "s",
+            messages: [
+              { sender: "USER", content: "Hello Cora" },
+              { sender: "ASSISTANT", content: "Hello there." },
+            ],
+            nextCursor: null,
+          }),
+      },
+    );
     const reply = await bodyOf(await call("chat", { body: { characterIds: ["char-a"] } }));
     expect(reply.messages[0].lines[0].text).toBe("Hi there.");
+    expect(reply.messages[0].spokenMessage).toBe("Hi there.");
+
+    const page = await bodyOf(await call("chat/session", { body: { sessionId: reply.sessionId } }));
+    expect(page.messages.map((m: { content: string }) => m.content)).toEqual(["Hello Cora", "Hi there."]);
+  });
+
+  it("keeps server context when the browser floods the caps", async () => {
+    const { call, upstream } = setup({
+      allowClientContext: true,
+      limits: { metadataItems: 3, eventItems: 3 },
+      buildContext: () => ({
+        metadata: [{ id: "vault", type: "OBJECT", name: "Vault" }],
+        events: [{ priority: 2, content: "Server event" }],
+      }),
+    });
+    const flood = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `x${i}`, type: "OBJECT", name: "X", priority: 0, content: "spam" }));
+    await call("chat", { body: { characterIds: ["char-a"], metadata: flood(10), events: flood(10) } });
+    const sent = upstream.last()!.body as { metadata: Array<{ id: string }>; events: Array<{ content: string }> };
+    expect(sent.metadata).toHaveLength(3);
+    expect(sent.metadata[0]!.id).toBe("vault");
+    expect(sent.events).toHaveLength(3);
+    expect(sent.events.at(-1)!.content).toBe("Server event");
   });
 });
 
@@ -216,6 +256,10 @@ describe("speech", () => {
     expect(
       (await call("audio/generate", { body: { characterId: "char-a", message: line.text, speechToken: line.speechToken }, user: "mallory" })).status,
     ).toBe(403);
+    // A real line, but in another allowlisted character's voice.
+    expect(
+      (await call("audio/generate", { body: { characterId: "char-b", message: line.text, speechToken: line.speechToken } })).status,
+    ).toBe(403);
 
     const ok = await call("audio/generate", { body: { characterId: "char-a", message: line.text, speechToken: line.speechToken, emotion: "HAPPY" } });
     expect(ok.status).toBe(200);
@@ -277,7 +321,7 @@ describe("quiz", () => {
     expect((await call("quiz", { body: { characterId: "char-a", questionSetId: "set-2" } })).status).toBe(403);
 
     const started = await bodyOf(await call("quiz", { body: { characterId: "char-a", questionSetId: "set-1", playerId: "x" } }));
-    expect(started.sessionId).toMatch(/^ncs_quiz-1\./);
+    expect(started.sessionId).toMatch(/^ncq_quiz-1\.char-a\./);
     expect(started.lines[0].speechToken).toBeTruthy();
     expect((upstream.last()!.body as { playerId: string }).playerId).toBe("alice");
 
@@ -353,6 +397,18 @@ describe("abuse limits", () => {
     expect((await call("chat", { body, headers: { "sec-fetch-site": "same-origin", origin: ORIGIN } })).status).toBe(200);
   });
 
+  it("refuses sibling subdomains, which could otherwise post forms with the visitor's cookies", async () => {
+    const { call } = setup();
+    const form = new FormData();
+    form.append("characterId", "char-a");
+    form.append("audio", new Blob([new Uint8Array(10)], { type: "audio/wav" }));
+    const response = await call("audio/transcribe", {
+      body: form,
+      headers: { "sec-fetch-site": "same-site", origin: "https://forum.game.example" },
+    });
+    expect(response.status).toBe(403);
+  });
+
   it("answers CORS preflight only for allowed origins", async () => {
     const { call } = setup({ cors: { origins: ["https://partner.example"] } });
     const good = await call("chat", { method: "OPTIONS", headers: { origin: "https://partner.example" } });
@@ -372,6 +428,18 @@ describe("upstream failures", () => {
     expect((await bodyOf(response)).code).toBe("proxy_misconfigured");
     expect(onError).toHaveBeenCalled();
     expect(JSON.stringify(onError.mock.calls)).not.toContain(API_KEY);
+  });
+
+  it("hides a deactivated key or suspended workspace the same way", async () => {
+    for (const body of [{ error: "API Key is not active." }, { error: "Ask its owner to upgrade.", code: "MEMBER_SUSPENDED" }]) {
+      const { call } = setup({}, { chat: () => json(body, 403) });
+      const response = await bodyOf(await call("chat", { body: { characterIds: ["char-a"] } }));
+      expect(response.code).toBe("proxy_misconfigured");
+      expect(JSON.stringify(response)).not.toMatch(/API Key|upgrade/);
+    }
+    // A plan gate is the visitor-facing kind of 403 and still comes through.
+    const gated = setup({}, { chat: () => json({ error: "Group chat needs a Pro plan." }, 403) });
+    expect((await gated.call("chat", { body: { characterIds: ["char-a"] } })).status).toBe(403);
   });
 
   it("relays client errors and masks server errors", async () => {

@@ -11,5 +11,5 @@ export { MemoryRateLimiter, type RateLimiter, type RateLimitOptions, type RateLi
 
 // For backends that call Neocortex directly with their key.
 export { NeocortexClient, NeocortexClient as NeocortexServerClient, type NeocortexClientOptions } from "../core/client";
-export { NeocortexError } from "../core/errors";
+export { NeocortexError, isNeocortexError } from "../core/errors";
 export type * from "../core/types";

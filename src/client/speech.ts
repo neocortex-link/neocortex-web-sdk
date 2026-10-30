@@ -1,5 +1,5 @@
 import type { NeocortexClient } from "../core/client";
-import { NeocortexError } from "../core/errors";
+import { isNeocortexError } from "../core/errors";
 import type { ChatLine } from "../core/types";
 import type { StreamingAudioPlayer } from "./audio/StreamingAudioPlayer";
 
@@ -97,7 +97,7 @@ export class LineSpeaker {
         };
       } catch (error) {
         // Older servers do not offer streaming; use whole clips from now on.
-        const unsupported = error instanceof NeocortexError && error.status === 404 && (!error.code || error.code === "not_found");
+        const unsupported = isNeocortexError(error) && error.status === 404 && (!error.code || error.code === "not_found");
         if (!unsupported) throw error;
         this.streaming = false;
       }
@@ -112,14 +112,15 @@ type Playable = { play(onStart: () => void): Promise<void> };
 function wait(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
     if (signal.aborted) return resolve();
-    const timer = setTimeout(resolve, ms);
-    signal.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timer);
-        resolve();
-      },
-      { once: true },
-    );
+    const onAbort = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    // The conversation's signal outlives every line, so take the listener off again.
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal.addEventListener("abort", onAbort, { once: true });
   });
 }

@@ -40,6 +40,21 @@ describe("elements", () => {
     input.remove();
   });
 
+  it("rebuilds its client when the endpoint attribute changes", () => {
+    const badge = document.createElement("neocortex-chat-panel");
+    badge.setAttribute("endpoint", "/one");
+    const first = badge.client;
+    expect(first.baseUrl).toBe("/one");
+    expect(badge.client).toBe(first);
+    badge.setAttribute("endpoint", "/two");
+    expect(badge.client.baseUrl).toBe("/two");
+
+    const explicit = new NeocortexClient({ baseUrl: "/explicit" });
+    badge.client = explicit;
+    badge.setAttribute("endpoint", "/three");
+    expect(badge.client).toBe(explicit);
+  });
+
   it("neocortex-chat runs a turn through its client and shows the reply", async () => {
     const upstream = fakeUpstream({ chat: () => chatReply("s1", [{ text: "Hello from Cora", emotion: "HAPPY" }]) });
     setDefaultClient(new NeocortexClient({ baseUrl: "https://api.test/v3", fetch: upstream.fetch }));

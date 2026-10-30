@@ -1,4 +1,4 @@
-import { createServer, type Server } from "node:http";
+import { createServer, request as httpRequest, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { toNodeHandler } from "../src/server";
@@ -10,6 +10,8 @@ let lastBody = "";
 beforeAll(async () => {
   const handler = toNodeHandler(async (request) => {
     const url = new URL(request.url);
+    // Refuses without reading the body, as the proxy does for an unauthorized visitor.
+    if (url.pathname.endsWith("/refuse")) return new Response('{"error":"no"}', { status: 401 });
     if (url.pathname.endsWith("/echo")) {
       lastBody = await request.text();
       return new Response(JSON.stringify({ path: url.pathname, host: url.host, body: lastBody }), {
@@ -56,6 +58,21 @@ describe("toNodeHandler", () => {
   it("honours forwarded host and protocol", async () => {
     const response = await fetch(`${base}/x/echo`, { headers: { "x-forwarded-host": "game.example", "x-forwarded-proto": "https" } });
     expect((await response.json()).host).toBe("game.example");
+  });
+
+  it("lets the handler answer before an upload finishes, so a huge body is never buffered", async () => {
+    const status = await new Promise<number>((resolve, reject) => {
+      const request = httpRequest(`${base}/refuse`, { method: "POST", headers: { "transfer-encoding": "chunked", "content-type": "application/json" } });
+      request.on("response", (response) => {
+        resolve(response.statusCode ?? 0);
+        request.destroy();
+      });
+      request.on("error", () => {});
+      // Send one chunk and hold the rest back: an adapter that buffers would never answer.
+      request.write("x".repeat(64 * 1024));
+      setTimeout(() => reject(new Error("the adapter waited for the whole body")), 2000);
+    });
+    expect(status).toBe(401);
   });
 
   it("streams responses chunk by chunk", async () => {

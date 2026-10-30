@@ -89,6 +89,8 @@ button.primary { background: var(--_accent); color: var(--_accent-text); border-
 export abstract class NeocortexElement extends ElementBase {
   protected readonly root: ShadowRoot;
   private _client: NeocortexClient | null = null;
+  /** The `endpoint` the cached client was built for; null when one was set explicitly. */
+  private clientEndpoint: string | null = null;
 
   constructor() {
     super();
@@ -97,14 +99,17 @@ export abstract class NeocortexElement extends ElementBase {
 
   /** A client to use instead of the `endpoint` attribute, e.g. one carrying auth headers. */
   get client(): NeocortexClient {
-    if (this._client) return this._client;
-    const endpoint = this.getAttribute("endpoint");
-    if (endpoint) return (this._client = new NeocortexClient({ baseUrl: endpoint }));
-    return (this._client = defaultClient ?? new NeocortexClient());
+    const endpoint = this.getAttribute("endpoint") ?? "";
+    // A client set explicitly wins; one built from `endpoint` is rebuilt when the attribute changes.
+    if (this._client && (this.clientEndpoint === null || this.clientEndpoint === endpoint)) return this._client;
+    this.clientEndpoint = endpoint;
+    this._client = endpoint ? new NeocortexClient({ baseUrl: endpoint }) : (defaultClient ?? new NeocortexClient());
+    return this._client;
   }
 
   set client(client: NeocortexClient) {
     this._client = client;
+    this.clientEndpoint = null;
     this.clientChanged();
   }
 

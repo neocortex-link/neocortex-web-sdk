@@ -1,8 +1,8 @@
 {
   "name": "@neocortex-link/web",
-  "version": "0.1.0-rc.0",
+  "version": "0.1.0",
   "description": "Neocortex Web SDK: a secure server proxy, a browser client for smart characters, group chat and quizzes, and a Web Components UI kit.",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "author": "Neocortex",
   "homepage": "https://neocortex.link",
   "repository": {
@@ -33,11 +33,29 @@
   "files": [
     "dist",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "LICENSE",
+    "NOTICE"
   ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "server": [
+        "./dist/server/index.d.ts"
+      ],
+      "client": [
+        "./dist/client/index.d.ts"
+      ],
+      "ui": [
+        "./dist/ui/index.d.ts"
+      ],
+      "ui/auto": [
+        "./dist/ui/auto.d.ts"
+      ]
+    }
+  },
   "exports": {
     ".": {
       "import": {
@@ -98,7 +116,6 @@
     "vitest": "^5.0.5"
   },
   "publishConfig": {
-    "access": "public",
-    "tag": "rc"
+    "access": "public"
   }
 }

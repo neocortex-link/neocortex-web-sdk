@@ -80,6 +80,10 @@ export class AudioReceiver extends Emitter<AudioReceiverEvents> {
   private preroll: Float32Array[] = [];
   private silentSeconds = 0;
   private lastAmplitudeEmit = 0;
+  private starting: Promise<void> | null = null;
+  /** Bumped by stop(), so a microphone that opens afterwards knows it is no longer wanted. */
+  private generation = 0;
+  private pressed = false;
   private static workletUrl: string | null = null;
 
   constructor(options: AudioReceiverOptions = {}) {
@@ -141,8 +145,16 @@ export class AudioReceiver extends Emitter<AudioReceiverEvents> {
   }
 
   /** Opens the microphone. In detection mode, recording begins when the player speaks. */
-  async start(): Promise<void> {
-    if (this.stream) return;
+  start(): Promise<void> {
+    if (this.stream) return Promise.resolve();
+    // A second click while the permission prompt is up joins the first request
+    // instead of opening a second microphone.
+    this.starting ??= this.open().finally(() => (this.starting = null));
+    return this.starting;
+  }
+
+  private async open(): Promise<void> {
+    const generation = this.generation;
     const context = getAudioContext();
     if (!context || !navigator.mediaDevices?.getUserMedia) {
       const error = new Error("This browser cannot record audio.");
@@ -151,8 +163,9 @@ export class AudioReceiver extends Emitter<AudioReceiverEvents> {
     }
     if (context.state === "suspended") await context.resume().catch(() => {});
 
+    let stream: MediaStream;
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
+      stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           ...(this.deviceId ? { deviceId: { exact: this.deviceId } } : {}),
           echoCancellation: true,
@@ -164,23 +177,39 @@ export class AudioReceiver extends Emitter<AudioReceiverEvents> {
       // A remembered device that was unplugged should not lock the player out.
       if (this.deviceId && (error as Error)?.name === "OverconstrainedError") {
         this.deviceId = undefined;
-        return this.start();
+        return this.open();
       }
       const failure = error instanceof Error ? error : new Error(String(error));
       this.emit(failure.name === "NotAllowedError" ? "permissionDenied" : "error", failure);
       throw failure;
     }
+
+    // stop() was called while the prompt was up: close what just opened.
+    if (generation !== this.generation) {
+      stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
     this.emit("permissionGranted", undefined);
 
+    const source = context.createMediaStreamSource(stream);
+    const node = await this.createCapture(context);
+    if (generation !== this.generation) {
+      node.disconnect();
+      stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
     this.sampleRate = context.sampleRate;
-    this.source = context.createMediaStreamSource(this.stream);
-    this.node = await this.createCapture(context);
-    this.source.connect(this.node);
+    this.stream = stream;
+    this.source = source;
+    this.node = node;
+    source.connect(node);
     this.setState("listening");
   }
 
-  /** Closes the microphone. A recording in progress is discarded. */
+  /** Closes the microphone, including one still waiting on permission. A recording in progress is discarded. */
   stop(): void {
+    this.generation++;
+    this.pressed = false;
     this.source?.disconnect();
     this.node?.disconnect();
     this.stream?.getTracks().forEach((track) => track.stop());
@@ -192,12 +221,15 @@ export class AudioReceiver extends Emitter<AudioReceiverEvents> {
 
   /** Push-to-talk: start recording. Opens the microphone if needed. */
   async press(): Promise<void> {
+    this.pressed = true;
     if (!this.stream) await this.start();
-    this.beginRecording();
+    // Released while the microphone was opening: record nothing.
+    if (this.pressed && this.stream) this.beginRecording();
   }
 
   /** Push-to-talk: stop recording and emit what was said. */
   release(): void {
+    this.pressed = false;
     if (this._state === "recording") this.finishRecording();
   }
 

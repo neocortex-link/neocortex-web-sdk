@@ -1,20 +1,12 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig([
-  // Runs anywhere, and is the one entry a CommonJS server is likely to require.
-  {
-    entry: { index: "src/index.ts", "server/index": "src/server/index.ts" },
-    format: ["esm", "cjs"],
-    dts: true,
-    target: "es2022",
-    platform: "neutral",
-    sourcemap: true,
-    clean: false,
-    splitting: false,
-  },
-  // Browser-only entries. ESM is the only format a page or bundler needs.
+  // Every entry in one ESM build with shared chunks, so `NeocortexClient` and
+  // `NeocortexError` exist once whichever entry they are imported from.
   {
     entry: {
+      index: "src/index.ts",
+      "server/index": "src/server/index.ts",
       "client/index": "src/client/index.ts",
       "ui/index": "src/ui/index.ts",
       "ui/auto": "src/ui/auto.ts",
@@ -22,8 +14,18 @@ export default defineConfig([
     format: ["esm"],
     dts: true,
     target: "es2022",
-    platform: "browser",
+    platform: "neutral",
     sourcemap: true,
     splitting: true,
+  },
+  // CommonJS for servers that still `require`. The browser entries are ESM only.
+  {
+    entry: { index: "src/index.ts", "server/index": "src/server/index.ts" },
+    format: ["cjs"],
+    dts: true,
+    target: "es2022",
+    platform: "neutral",
+    sourcemap: true,
+    splitting: false,
   },
 ]);

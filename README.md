@@ -24,11 +24,11 @@ The proxy adds these protections:
 - **Characters are allowlisted.** A visitor can't use a character from your team that you didn't expose.
 - **Requests are rebuilt from known fields only.** Size, length and count limits are enforced before anything is sent upstream.
 - **Conversations are bound to the user.** Session ids reach the browser as signed tokens, so nobody can read or continue someone else's conversation by guessing an id.
-- **Speech is limited to real replies.** Text-to-speech only voices lines a character actually said to that user, so your characters' voices can't be used to say arbitrary text.
+- **Speech is limited to real replies.** Text-to-speech only voices lines a character actually said to that user, in that same character's voice, so your characters' voices can't be used to say arbitrary text.
 - **Game context is server-side by default.** Scene `metadata` and `events` sent from the browser are dropped unless you opt in. Build trusted context on the server with `buildContext`.
 - **Per-user rate limits, plus one turn in flight per conversation.**
-- **Cross-site requests are refused,** unless you allowlist the origin.
-- **Upstream errors don't leak.** Server errors are masked, and a rejected API key becomes a generic 502.
+- **Requests from other origins are refused,** including sibling subdomains, unless you allowlist the origin.
+- **Upstream errors don't leak.** Server errors are masked. A rejected, deactivated or suspended API key becomes a generic 502 for the visitor, and the real reason goes to your `onError`.
 
 The signing is stateless HMAC, so the proxy works on serverless hosts without a shared store.
 
@@ -82,29 +82,57 @@ app.use("/api/neocortex", toNodeHandler(handler));
 
 ### Cloudflare Workers, Hono, Bun, Deno
 
-The handler is a standard `(Request) => Promise<Response>`, so you can mount it directly:
+The handler is a standard `(Request) => Promise<Response>`, so you can mount it directly. On Workers the key arrives with each request's `env`, so create the handler on first use:
 
 ```ts
+import { createNeocortexHandler } from "@neocortex-link/web/server";
+
+let handler: ((request: Request) => Promise<Response>) | undefined;
+
 export default {
-  fetch: createNeocortexHandler({ apiKey: env.NEOCORTEX_API_KEY, basePath: "", characters: [...], authorize }),
+  fetch(request: Request, env: { NEOCORTEX_API_KEY: string }) {
+    handler ??= createNeocortexHandler({
+      apiKey: env.NEOCORTEX_API_KEY,
+      basePath: "",
+      characters: ["your-character-id"],
+      authorize,
+    });
+    return handler(request);
+  },
 };
 ```
+
+The built-in rate limiter counts per Worker instance. For a global limit, pass a `RateLimiter` backed by KV or Durable Objects.
 
 ### Anonymous visitors
 
 For an anonymous site you still need a stable id per visitor, because rate limits and credit caps hang off it. Use a signed, httpOnly cookie that your server sets. Don't use a value the browser picks itself.
 
+[`examples/quickstart`](examples/quickstart) is a complete small site that does exactly this: one HTML page and a `node:http` server, with no framework or bundler.
+
 ## 2. Use it in the browser
 
 ### Drop-in UI
 
-```html
-<script type="module">
-  import "@neocortex-link/web/ui/auto";
-</script>
+With a bundler (Vite, Next.js, webpack...):
 
+```js
+import "@neocortex-link/web/ui/auto";
+```
+
+In plain HTML, load it from a CDN instead:
+
+```html
+<script type="module" src="https://cdn.jsdelivr.net/npm/@neocortex-link/web@0.1.0/dist/ui/auto.js"></script>
+```
+
+Then place the element anywhere on the page:
+
+```html
 <neocortex-chat endpoint="/api/neocortex" character-id="your-character-id" voice></neocortex-chat>
 ```
+
+To serve the files yourself instead of from a CDN, map the import with an import map, as [`examples/quickstart`](examples/quickstart) does.
 
 | Element | What it is |
 |---|---|
@@ -283,3 +311,7 @@ It also has a live theme editor.
 ```bash
 npm run check   # typecheck, lint, test, build
 ```
+
+## License
+
+[Apache-2.0](LICENSE). Using the Neocortex API itself is subject to the Neocortex terms of service.

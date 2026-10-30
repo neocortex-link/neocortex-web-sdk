@@ -251,7 +251,10 @@ export function createNeocortexHandler(options: NeocortexHandlerOptions): (reque
     const origin = request.headers.get("origin");
     if (origin && corsOrigins.has(origin)) return;
     const site = request.headers.get("sec-fetch-site");
-    if (site === "cross-site") {
+    // "same-site" includes sibling subdomains, which can still post a form (the
+    // transcription route takes multipart, a CORS-simple type) with the visitor's
+    // cookies. Only the page's own origin, or an allowlisted one, may call.
+    if (site === "cross-site" || site === "same-site") {
       throw new ProxyError(403, "origin_not_allowed", "Requests from other sites are not allowed.");
     }
     if (!site && origin) {
@@ -329,9 +332,17 @@ export function createNeocortexHandler(options: NeocortexHandlerOptions): (reque
     const message = typeof body.error === "string" ? body.error : `Request failed (${response.status})`;
     const code = typeof body.code === "string" ? body.code : typeof body.error === "string" && /^[a-z_]+$/.test(body.error) ? body.error : "upstream_error";
 
-    if (response.status === 401) {
-      // Our key was refused. The visitor did nothing wrong and should not learn why.
-      onError(new Error(`Neocortex rejected the API key: ${message}`), { route: ctx.route, userId: ctx.user.id, status: 401 });
+    // Our key was refused, deactivated, or its workspace suspended. The visitor did
+    // nothing wrong and should not learn why; the operator gets the real reason.
+    const keyProblem =
+      response.status === 401 ||
+      (response.status === 403 && (/api key/i.test(message) || code === "MEMBER_SUSPENDED"));
+    if (keyProblem) {
+      onError(new Error(`Neocortex refused the API key (${response.status}): ${message}`), {
+        route: ctx.route,
+        userId: ctx.user.id,
+        status: response.status,
+      });
       throw new ProxyError(502, "proxy_misconfigured", "The Neocortex proxy is not configured correctly.");
     }
     if (!RELAYED_STATUSES.has(response.status)) {
@@ -358,27 +369,30 @@ export function createNeocortexHandler(options: NeocortexHandlerOptions): (reque
     return (await response.json()) as T;
   }
 
-  /** Filters each line and attaches the token that lets it be spoken later. */
-  async function signLines(ctx: Context, lines: unknown, route: "chat" | "quiz"): Promise<ChatLine[]> {
+  function filter(ctx: Context, text: string, route: "chat" | "quiz"): string | Promise<string> {
+    return options.filterText ? options.filterText(text, { user: ctx.user, route }) : text;
+  }
+
+  /** Filters each line and attaches the token that lets that character speak it later. */
+  async function signLines(ctx: Context, lines: unknown, route: "chat" | "quiz", characterId: string): Promise<ChatLine[]> {
     if (!Array.isArray(lines)) return [];
     return Promise.all(
       lines.map(async (raw: ChatLine) => {
         const line = { ...raw };
-        if (options.filterText) {
-          line.text = await options.filterText(line.text ?? "", { user: ctx.user, route });
-          if (line.spokenText) line.spokenText = await options.filterText(line.spokenText, { user: ctx.user, route });
-        }
-        line.speechToken = await signer.speechToken(ctx.user.id, line.spokenText || line.text || "");
+        line.text = await filter(ctx, line.text ?? "", route);
+        if (line.spokenText) line.spokenText = await filter(ctx, line.spokenText, route);
+        line.speechToken = await signer.speechToken(ctx.user.id, characterId, line.spokenText || line.text || "");
         return line;
       }),
     );
   }
 
-  async function signQuizTurn(ctx: Context, turn: Record<string, unknown>): Promise<Record<string, unknown>> {
+  async function signQuizTurn(ctx: Context, turn: Record<string, unknown>, characterId: string): Promise<Record<string, unknown>> {
     return {
       ...turn,
-      sessionId: typeof turn.sessionId === "string" ? await signer.wrapSession(turn.sessionId, ctx.user.id) : turn.sessionId,
-      lines: await signLines(ctx, turn.lines, "quiz"),
+      sessionId:
+        typeof turn.sessionId === "string" ? await signer.wrapQuizSession(turn.sessionId, ctx.user.id, characterId) : turn.sessionId,
+      lines: await signLines(ctx, turn.lines, "quiz", characterId),
     };
   }
 
@@ -405,17 +419,20 @@ export function createNeocortexHandler(options: NeocortexHandlerOptions): (reque
       // A token from a rotated key or another user starts a fresh conversation rather than failing.
       const sessionId = body.sessionId ? ((await signer.unwrapSession(body.sessionId, ctx.user.id)) ?? undefined) : undefined;
 
-      let metadata: Interactable[] = [];
-      let events: EventLog[] = [];
-      if (options.allowClientContext) {
-        if (Array.isArray(body.metadata)) metadata = body.metadata as Interactable[];
-        if (Array.isArray(body.events)) events = body.events as EventLog[];
-      }
-      if (options.buildContext) {
-        const extra = await options.buildContext(ctx.user, { characterIds, message, request: ctx.request });
-        metadata = [...metadata, ...(extra.metadata ?? [])];
-        events = [...events, ...(extra.events ?? [])];
-      }
+      // Trusted context is placed where the caps keep it: metadata is cut from the
+      // end and events from the start, so a flood of browser items cannot push out
+      // what the server added.
+      const client = options.allowClientContext
+        ? {
+            metadata: Array.isArray(body.metadata) ? (body.metadata as Interactable[]) : [],
+            events: Array.isArray(body.events) ? (body.events as EventLog[]) : [],
+          }
+        : { metadata: [], events: [] };
+      const server = options.buildContext
+        ? await options.buildContext(ctx.user, { characterIds, message, request: ctx.request })
+        : {};
+      const metadata: Interactable[] = [...(server.metadata ?? []), ...client.metadata];
+      const events: EventLog[] = [...client.events, ...(server.events ?? [])];
 
       const upstreamBody = {
         characterIds,
@@ -436,7 +453,11 @@ export function createNeocortexHandler(options: NeocortexHandlerOptions): (reque
       return jsonResponse({
         sessionId: await signer.wrapSession(reply.sessionId, ctx.user.id),
         messages: await Promise.all(
-          (reply.messages ?? []).map(async (message) => ({ ...message, lines: await signLines(ctx, message.lines, "chat") })),
+          (reply.messages ?? []).map(async (message) => ({
+            ...message,
+            lines: await signLines(ctx, message.lines, "chat", String(message.characterId ?? "")),
+            ...(typeof message.spokenMessage === "string" ? { spokenMessage: await filter(ctx, message.spokenMessage, "chat") } : {}),
+          })),
         ),
       });
     },
@@ -447,12 +468,20 @@ export function createNeocortexHandler(options: NeocortexHandlerOptions): (reque
       if (!sessionId) throw new ProxyError(404, "session_not_found", "That conversation was not found.");
       const before = optionalId(body.before, "before");
 
-      const page = await upstreamJson<Record<string, unknown>>(ctx, "chat/session", {
+      const page = await upstreamJson<{ messages?: Array<{ sender?: string; content?: string }> }>(ctx, "chat/session", {
         sessionId,
         limit: clampInt(body.limit, 1, 100) ?? 20,
         ...(before ? { before } : {}),
       });
-      return jsonResponse({ ...page, sessionId: body.sessionId });
+      // History replays what characters said, so it goes through the same filter.
+      const messages = await Promise.all(
+        (page.messages ?? []).map(async (entry) =>
+          entry.sender === "ASSISTANT" && typeof entry.content === "string"
+            ? { ...entry, content: await filter(ctx, entry.content, "chat") }
+            : entry,
+        ),
+      );
+      return jsonResponse({ ...page, messages, sessionId: body.sessionId });
     },
 
     speech: (ctx) => speak(ctx, false),
@@ -497,10 +526,14 @@ export function createNeocortexHandler(options: NeocortexHandlerOptions): (reque
       const body = await readJson(ctx.request, limits.jsonBytes);
       let upstreamBody: Record<string, unknown>;
       let lockKey: string;
+      let hostId: string;
 
       if (body.sessionId !== undefined) {
-        const sessionId = await signer.unwrapSession(body.sessionId, ctx.user.id);
-        if (!sessionId) throw new ProxyError(404, "session_not_found", "That quiz was not found.");
+        const quiz = await signer.unwrapQuizSession(body.sessionId, ctx.user.id);
+        if (!quiz) throw new ProxyError(404, "session_not_found", "That quiz was not found.");
+        // The host must still be allowed: a token outlives an allowlist change.
+        hostId = await requireCharacter(ctx.user, quiz.characterId);
+        const { sessionId } = quiz;
         const say = requireText(body.say, "say", limits.messageChars, false);
         const optionId = optionalId(body.optionId, "optionId");
         const participantId = optionalId(body.participantId, "participantId");
@@ -514,6 +547,7 @@ export function createNeocortexHandler(options: NeocortexHandlerOptions): (reque
         lockKey = `quiz:${ctx.user.id}:${sessionId}`;
       } else {
         const characterId = await requireCharacter(ctx.user, body.characterId);
+        hostId = characterId;
         const questionSetId = optionalId(body.questionSetId, "questionSetId");
         if (!questionSetId) throw new ProxyError(422, "missing_ids", "questionSetId is required to start a quiz.");
         const sets = await allowed(options.questionSets, ctx.user);
@@ -544,21 +578,20 @@ export function createNeocortexHandler(options: NeocortexHandlerOptions): (reque
 
       try {
         const turn = await lock(lockKey, () => upstreamJson<Record<string, unknown>>(ctx, "quiz", upstreamBody));
-        return jsonResponse(await signQuizTurn(ctx, turn));
+        return jsonResponse(await signQuizTurn(ctx, turn, hostId));
       } catch (error) {
         // A finished quiz replays its closing turn, which needs the same signing.
         if (error instanceof UpstreamError && error.body.turn && typeof error.body.turn === "object") {
-          return errorResponse(error, { turn: await signQuizTurn(ctx, error.body.turn as Record<string, unknown>) });
+          return errorResponse(error, { turn: await signQuizTurn(ctx, error.body.turn as Record<string, unknown>, hostId) });
         }
         throw error;
       }
     },
 
     async quizSession(ctx) {
-      const token = ctx.url.searchParams.get("sessionId");
-      const sessionId = await signer.unwrapSession(token, ctx.user.id);
-      if (!sessionId) throw new ProxyError(404, "session_not_found", "That quiz was not found.");
-      const state = await upstreamJson<Record<string, unknown>>(ctx, `quiz/session?sessionId=${encodeURIComponent(sessionId)}`);
+      const quiz = await signer.unwrapQuizSession(ctx.url.searchParams.get("sessionId"), ctx.user.id);
+      if (!quiz) throw new ProxyError(404, "session_not_found", "That quiz was not found.");
+      const state = await upstreamJson<Record<string, unknown>>(ctx, `quiz/session?sessionId=${encodeURIComponent(quiz.sessionId)}`);
       return jsonResponse(state);
     },
 
@@ -590,7 +623,7 @@ export function createNeocortexHandler(options: NeocortexHandlerOptions): (reque
     const body = await readJson(ctx.request, limits.jsonBytes);
     const characterId = await requireCharacter(ctx.user, body.characterId);
     const message = requireText(body.message, "message", limits.speechChars, true)!;
-    if (speechRepliesOnly && !(await signer.verifySpeech(body.speechToken, ctx.user.id, message))) {
+    if (speechRepliesOnly && !(await signer.verifySpeech(body.speechToken, ctx.user.id, characterId, message))) {
       throw new ProxyError(403, "speech_not_allowed", "Only lines a character said can be spoken.");
     }
     const emotion = typeof body.emotion === "string" && /^[A-Za-z]{1,20}$/.test(body.emotion) ? body.emotion : undefined;

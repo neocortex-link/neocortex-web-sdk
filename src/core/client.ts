@@ -1,6 +1,6 @@
 import { toAudioEmotion, toEmotion } from "./emotions";
-import { NeocortexError } from "./errors";
-import { type FetchLike, type RequestOptions, isBrowser, joinUrl, send, sleep } from "./http";
+import { isNeocortexError, NeocortexError } from "./errors";
+import { anySignal, type FetchLike, type RequestOptions, isBrowser, joinUrl, send, sleep } from "./http";
 import type {
   AccountResponse,
   Character,
@@ -151,12 +151,11 @@ export class NeocortexClient {
    */
   async streamAudio(request: Omit<GenerateAudioRequest, "format">, options?: RequestOptions): Promise<AudioStream> {
     const controller = new AbortController();
-    const outer = options?.signal;
-    outer?.addEventListener("abort", () => controller.abort(outer.reason), { once: true });
+    const signal = anySignal([options?.signal, controller.signal]);
 
     const response = await this.post("audio/stream", this.audioBody(request), this.timeouts.audio, {
       ...options,
-      signal: controller.signal,
+      signal,
     });
     const body = response.body;
     if (!body) throw new NeocortexError("The speech stream had no body.", { status: response.status });
@@ -173,7 +172,7 @@ export class NeocortexClient {
           if (chunk) yield chunk;
         }
       } catch (error) {
-        if (controller.signal.aborted) return;
+        if (signal.aborted) return;
         throw error;
       } finally {
         reader.releaseLock();
@@ -220,7 +219,7 @@ export class NeocortexClient {
         const turn = await this.json<QuizTurnResponse>("quiz", request, this.timeouts.chat, options);
         return { ...turn, lines: normalizeLines(turn.lines ?? []) as QuizTurnResponse["lines"] };
       } catch (error) {
-        if (!(error instanceof NeocortexError)) throw error;
+        if (!isNeocortexError(error)) throw error;
         if (error.code === "operation_in_progress" && busyRetries-- > 0) {
           await sleep((error.retryAfter ?? QUIZ_BUSY_RETRY_MS / 1000) * 1000, options?.signal);
           continue;

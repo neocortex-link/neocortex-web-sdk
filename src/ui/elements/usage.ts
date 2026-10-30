@@ -4,7 +4,7 @@ import { NeocortexElement } from "../base";
 
 /** A small status pill showing whether characters are available. Refreshes every `refresh` seconds (default 60). */
 export class NeocortexUsageBadge extends NeocortexElement {
-  static observedAttributes = ["character-id", "refresh"];
+  static observedAttributes = ["endpoint", "character-id", "refresh"];
 
   private gate: UsageGate | null = null;
   private offs: Array<() => void> = [];

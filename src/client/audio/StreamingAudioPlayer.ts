@@ -137,6 +137,8 @@ export class StreamingAudioPlayer {
         };
       });
     }
+    // The caller's signal usually belongs to a whole conversation; don't leave a listener per line on it.
+    options.signal?.removeEventListener("abort", stop);
     if (this.stopCurrent === stop) this.stopCurrent = null;
   }
 

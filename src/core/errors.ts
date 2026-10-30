@@ -39,6 +39,18 @@ export class NeocortexError extends Error {
   }
 }
 
+/**
+ * True for any `NeocortexError`, including one from another copy of this
+ * package (a CommonJS server build next to the ESM one, or two installed
+ * versions), which `instanceof` would miss.
+ */
+export function isNeocortexError(error: unknown): error is NeocortexError {
+  return (
+    error instanceof NeocortexError ||
+    (error instanceof Error && error.name === "NeocortexError" && typeof (error as NeocortexError).status === "number")
+  );
+}
+
 /** Builds the error for a refused response, reading its JSON body when there is one. */
 export async function errorFromResponse(response: Response): Promise<NeocortexError> {
   const retryAfter = parseRetryAfter(response.headers.get("retry-after"));

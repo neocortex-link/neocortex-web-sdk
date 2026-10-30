@@ -1,4 +1,4 @@
-import { NeocortexError, errorFromResponse } from "./errors";
+import { errorFromResponse, isNeocortexError, NeocortexError } from "./errors";
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -9,10 +9,35 @@ export type RequestOptions = {
 };
 
 /**
+ * A signal that aborts when any of `signals` does.
+ *
+ * Conversations hand the same long-lived signal to every request they make, so
+ * a plain listener per request would pile up for as long as the conversation
+ * lasts. `AbortSignal.any` holds its sources weakly; the listener fallback is
+ * only for engines that lack it.
+ */
+export function anySignal(signals: Array<AbortSignal | undefined>): AbortSignal {
+  const present = signals.filter((s): s is AbortSignal => !!s);
+  if (present.length === 1) return present[0]!;
+  if (typeof AbortSignal.any === "function") return AbortSignal.any(present);
+
+  const controller = new AbortController();
+  for (const signal of present) {
+    if (signal.aborted) {
+      controller.abort(signal.reason);
+      break;
+    }
+    signal.addEventListener("abort", () => controller.abort(signal.reason), { once: true });
+  }
+  return controller.signal;
+}
+
+/**
  * Sends one request and returns the response once headers have arrived.
  *
  * The timeout covers the wait for the response to start, not the body: a speech
- * stream can legitimately run longer than any sensible timeout.
+ * stream can legitimately run longer than any sensible timeout. Aborting the
+ * caller's signal still stops a body that is mid-stream.
  */
 export async function send(
   fetchImpl: FetchLike,
@@ -21,32 +46,22 @@ export async function send(
   timeoutMs: number,
   options: RequestOptions = {},
 ): Promise<Response> {
-  const controller = new AbortController();
   const outer = options.signal;
-  let timedOut = false;
-
   if (outer?.aborted) throw abortedError(outer.reason);
-  const onAbort = () => controller.abort(outer?.reason);
-  outer?.addEventListener("abort", onAbort, { once: true });
 
-  const timer = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, options.timeoutMs ?? timeoutMs);
+  const timeout = new AbortController();
+  const timer = setTimeout(() => timeout.abort(), options.timeoutMs ?? timeoutMs);
 
   try {
-    const response = await fetchImpl(url, { ...init, signal: controller.signal });
+    const response = await fetchImpl(url, { ...init, signal: anySignal([outer, timeout.signal]) });
     if (!response.ok) throw await errorFromResponse(response);
-    // The listener stays attached on success: the body may still be streaming,
-    // and aborting the caller's signal should stop it too.
     return response;
   } catch (error) {
-    outer?.removeEventListener("abort", onAbort);
-    if (error instanceof NeocortexError) throw error;
-    if (timedOut) {
+    if (isNeocortexError(error)) throw error;
+    if (outer?.aborted) throw abortedError(outer.reason);
+    if (timeout.signal.aborted) {
       throw new NeocortexError("The request timed out.", { status: 0, code: "timeout", cause: error });
     }
-    if (outer?.aborted) throw abortedError(outer.reason);
     throw new NeocortexError("Could not reach Neocortex. Check the network connection.", {
       status: 0,
       code: "network_error",
@@ -64,15 +79,15 @@ function abortedError(reason: unknown): NeocortexError {
 export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(abortedError(signal.reason));
-    const timer = setTimeout(resolve, ms);
-    signal?.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timer);
-        reject(abortedError(signal.reason));
-      },
-      { once: true },
-    );
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(abortedError(signal!.reason));
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
   });
 }
 
