@@ -10,6 +10,6 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "@neocortex-link/web": "0.1.0-rc.0"
+    "@neocortex-link/web": "^0.1.0"
   }
 }
