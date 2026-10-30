@@ -87,6 +87,12 @@ The handler is a standard `(Request) => Promise<Response>`, so you can mount it 
 ```ts
 import { createNeocortexHandler } from "@neocortex-link/web/server";
 
+// Replace with your own auth: return the visitor's id, or null to refuse.
+const authorize = async (request: Request) => {
+  const userId = await verifySession(request.headers.get("cookie"));
+  return userId ? { id: userId } : null;
+};
+
 let handler: ((request: Request) => Promise<Response>) | undefined;
 
 export default {
@@ -123,7 +129,7 @@ import "@neocortex-link/web/ui/auto";
 In plain HTML, load it from a CDN instead:
 
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/npm/@neocortex-link/web@0.2.0/dist/ui/auto.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@neocortex-link/web@0.2/dist/ui/auto.js"></script>
 ```
 
 Then place the element anywhere on the page:
@@ -156,6 +162,7 @@ To serve the files yourself instead of from a CDN, map the import with an import
 - `history="false"`
 - `mic="false"`
 - `theme="light|dark"`
+- `no-header`
 
 **Events.** They bubble out of shadow DOM:
 - `nx-line`
@@ -174,7 +181,7 @@ const chat = document.querySelector("neocortex-chat");
 chat.agent.registerAction("OPEN_DOOR", () => door.open());
 ```
 
-**Theming.** Every colour is a CSS custom property, and internals are exposed as `::part()`:
+**Theming.** Every colour is a CSS custom property, and internals are exposed as `::part()`, including nested ones such as `bubble`, `name`, `input-field` and `mic-button`:
 
 ```css
 neocortex-chat {
@@ -185,6 +192,7 @@ neocortex-chat {
   height: 600px;
 }
 neocortex-chat::part(header) { display: none; }
+neocortex-chat::part(bubble) { font-size: 1.05rem; }
 ```
 
 The other tokens are:
@@ -201,11 +209,15 @@ The other tokens are:
 
 Elements follow `prefers-color-scheme` unless given `theme`, and they respect `dir="rtl"`.
 
-**Auth headers.** If your proxy needs a token rather than a cookie, set one client for all elements:
+**Auth headers.** If your proxy needs a token rather than a cookie, set one client for every element that has no `endpoint` attribute. Elements already on the page switch to it too. For a single element, set its `client` property instead.
 
 ```js
 import { NeocortexClient, setDefaultClient } from "@neocortex-link/web/ui";
 setDefaultClient(new NeocortexClient({ baseUrl: "/api/neocortex", headers: () => ({ authorization: `Bearer ${getToken()}` }) }));
+```
+
+```html
+<neocortex-chat character-id="your-character-id"></neocortex-chat>
 ```
 
 ### Programmatic
@@ -235,12 +247,12 @@ await mic.start();
 
 | Class | Main methods |
 |---|---|
-| `SmartAgent` | `textToText`, `textToAudio`, `audioToText`, `audioToAudio`, `send`, `prompt`, `history`, `registerAction`, `clearSession`, `abort` |
+| `SmartAgent` | `textToText`, `textToAudio`, `audioToText`, `audioToAudio`, `send`, `prompt`, `transcribe`, `history`, `registerAction`, `unregisterAction`, `primeAudio`, `clearSession`, `abort` |
 | `GroupDirector` | `send`, `sendTo`, `continue`, `sendAudio`, `addCharacter`, `removeCharacter` |
-| `QuizAgent` | `begin`, `say`, `sayAs`, `choose`, `chooseAs`, `pass`, `resync`, `abort` |
+| `QuizAgent` | `begin`, `say`, `sayAs`, `choose`, `chooseAs`, `pass`, `passAs`, `resync`, `primeAudio`, `abort` |
 | `AudioReceiver` | `start`, `stop`, `press`, `release`, `selectDevice`, `AudioReceiver.devices()` |
 | `StreamingAudioPlayer` | `play`, `playBlob`, `stop`, `getLevel()` (for lip sync), `volume` |
-| `UsageGate` | `refresh`, `canUse`, `startAutoRefresh` |
+| `UsageGate` | `refresh`, `canUse`, `startAutoRefresh`, `stopAutoRefresh` |
 | `EventLogger`, `Interactables` | Game events and scene entities for each turn (see `allowClientContext`) |
 
 **How replies play.**
@@ -278,14 +290,17 @@ This exists only for local experiments. Anyone who opens the page can take the k
 | `basePath` | `/api/neocortex` | Where the handler is mounted; `""` for a whole host |
 | `baseUrl` | `https://api.neocortex.link/v3` | Point at a local or staging API |
 | `routes` | all on except `characters`, `questionSets`, `account` | `account` returns your team's email |
-| `limits` | message 500 chars, speech 2000, JSON 64 KB, audio 10 MB, 6 characters a turn | |
+| `limits` | message 500 chars, speech 2000, JSON 64 KB, audio 10 MB, 6 characters a turn, 40 scene entities, 20 events | |
 | `rateLimit` | 30 requests a minute per user, in memory | Pass a `RateLimiter` backed by Redis or KV when you run more than one instance |
 | `speechRepliesOnly` | `true` | `false` lets the browser voice any text |
 | `allowClientContext` | `false` | Accept browser-sent `metadata` and `events` |
 | `buildContext(user, turn)` | — | Add trusted scene context to every turn |
 | `filterText(text, ctx)` | — | Rewrite or moderate replies |
 | `cors.origins` | none | Only needed when the page is on another origin |
+| `cors.allowHeaders` | none | Extra request headers to allow from those origins, besides `content-type` and `authorization` |
 | `secret` | derived from `apiKey` | Signs session and speech tokens |
+| `timeoutMs` | 60000 | How long to wait for Neocortex to start answering |
+| `fetch` | global `fetch` | Your own fetch, for tests or an outbound proxy |
 | `onError` | `console.error` | Never receives the key |
 
 ## Playground

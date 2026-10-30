@@ -12,4 +12,4 @@ export type { RequestOptions, FetchLike } from "./core/http";
 export { encodeWav, readWavHeader, PcmStreamDecoder, type PcmChunk } from "./core/wav";
 export type * from "./core/types";
 
-export const VERSION = "0.2.0";
+export const VERSION = "0.2.1";

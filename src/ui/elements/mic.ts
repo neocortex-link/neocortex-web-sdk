@@ -96,7 +96,7 @@ export class NeocortexMicButton extends NeocortexElement {
   }
 
   get pushToTalk(): boolean {
-    return this.hasAttribute("push-to-talk");
+    return this.flag("push-to-talk");
   }
 
   get disabled(): boolean {

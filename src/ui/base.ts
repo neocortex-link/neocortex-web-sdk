@@ -9,6 +9,9 @@ const ElementBase = (typeof HTMLElement === "undefined" ? class {} : HTMLElement
 
 let defaultClient: NeocortexClient | null = null;
 
+/** Elements currently using the default client, held weakly so removed ones can be collected. */
+const usingDefault = new Set<WeakRef<NeocortexElement>>();
+
 /**
  * Sets the client every element uses unless it has its own `endpoint` attribute
  * or `client` property. Use it to add your app's auth headers once:
@@ -16,9 +19,16 @@ let defaultClient: NeocortexClient | null = null;
  * ```ts
  * setDefaultClient(new NeocortexClient({ baseUrl: "/api/neocortex", headers: () => ({ authorization: `Bearer ${token}` }) }));
  * ```
+ *
+ * Elements already on the page switch to the new client too.
  */
 export function setDefaultClient(client: NeocortexClient | null): void {
   defaultClient = client;
+  for (const ref of [...usingDefault]) {
+    const element = ref.deref();
+    usingDefault.delete(ref);
+    element?.defaultClientChanged();
+  }
 }
 
 /** Design tokens. Every value can be overridden from outside with the `--nx-*` custom property. */
@@ -103,7 +113,12 @@ export abstract class NeocortexElement extends ElementBase {
     // A client set explicitly wins; one built from `endpoint` is rebuilt when the attribute changes.
     if (this._client && (this.clientEndpoint === null || this.clientEndpoint === endpoint)) return this._client;
     this.clientEndpoint = endpoint;
-    this._client = endpoint ? new NeocortexClient({ baseUrl: endpoint }) : (defaultClient ?? new NeocortexClient());
+    if (endpoint) {
+      this._client = new NeocortexClient({ baseUrl: endpoint });
+    } else {
+      this._client = defaultClient ?? new NeocortexClient();
+      usingDefault.add(new WeakRef(this));
+    }
     return this._client;
   }
 
@@ -113,8 +128,29 @@ export abstract class NeocortexElement extends ElementBase {
     this.clientChanged();
   }
 
+  /** @internal Called by setDefaultClient for elements that were using the old default. */
+  defaultClientChanged(): void {
+    if (this.clientEndpoint !== "") return;
+    this._client = null;
+    this.clientChanged();
+  }
+
   /** Called when the client is replaced, so composite elements can rebuild their agent. */
   protected clientChanged(): void {}
+
+  /**
+   * Passes this element's `theme` down to the elements inside it. Each element
+   * picks light or dark on its own, so without this a `theme="light"` chat on a
+   * dark-mode machine would still draw dark bubbles.
+   */
+  protected syncTheme(): void {
+    const theme = this.getAttribute("theme");
+    for (const element of this.root.querySelectorAll("*")) {
+      if (!element.localName.startsWith("neocortex-")) continue;
+      if (theme) element.setAttribute("theme", theme);
+      else element.removeAttribute("theme");
+    }
+  }
 
   protected render(css: string, html: string): void {
     this.root.innerHTML = `<style>${BASE_CSS}${css}</style>${html}`;

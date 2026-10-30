@@ -96,7 +96,7 @@ export type PanelMessage = {
 
 /** A scrolling list of messages with a thinking indicator. */
 export class NeocortexChatPanel extends NeocortexElement {
-  static observedAttributes = ["empty-text"];
+  static observedAttributes = ["empty-text", "theme"];
 
   connectedCallback() {
     if (this.root.firstChild) return;
@@ -109,14 +109,17 @@ export class NeocortexChatPanel extends NeocortexElement {
       `,
       `<div class="list" part="list" role="log" aria-live="polite" aria-relevant="additions">
         <p class="empty" part="empty"></p>
-        <neocortex-thinking part="thinking"></neocortex-thinking>
+        <neocortex-thinking part="thinking" exportparts="dots"></neocortex-thinking>
       </div>`,
     );
     this.$(".empty").textContent = this.getAttribute("empty-text") ?? "";
+    this.syncTheme();
   }
 
-  attributeChangedCallback() {
-    if (this.root.firstChild) this.$(".empty").textContent = this.getAttribute("empty-text") ?? "";
+  attributeChangedCallback(name: string) {
+    if (!this.root.firstChild) return;
+    if (name === "theme") this.syncTheme();
+    else this.$(".empty").textContent = this.getAttribute("empty-text") ?? "";
   }
 
   addMessage(message: PanelMessage, options: { prepend?: boolean } = {}): HTMLElement {
@@ -128,6 +131,10 @@ export class NeocortexChatPanel extends NeocortexElement {
     if (message.emotion) element.setAttribute("emotion", message.emotion);
     if (message.hue !== undefined) element.setAttribute("hue", String(message.hue));
     element.setAttribute("part", `message ${message.sender}`);
+    // Lets the page style bubbles with ::part(bubble), through every layer.
+    element.setAttribute("exportparts", "name, bubble");
+    const theme = this.getAttribute("theme");
+    if (theme) element.setAttribute("theme", theme);
 
     const list = this.$(".list");
     if (options.prepend) list.insertBefore(element, this.$(".empty").nextSibling);

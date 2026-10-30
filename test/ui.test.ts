@@ -55,6 +55,63 @@ describe("elements", () => {
     expect(badge.client).toBe(explicit);
   });
 
+  it("passes theme down to nested elements, including new bubbles", () => {
+    const chat = document.createElement("neocortex-chat") as NeocortexChat;
+    chat.setAttribute("theme", "light");
+    document.body.append(chat);
+    const panel = chat.shadowRoot!.querySelector("neocortex-chat-panel") as NeocortexChatPanel;
+    expect(panel.getAttribute("theme")).toBe("light");
+    expect(chat.shadowRoot!.querySelector("neocortex-text-input")!.getAttribute("theme")).toBe("light");
+    expect(panel.addMessage({ sender: "character", text: "Hi" }).getAttribute("theme")).toBe("light");
+
+    chat.setAttribute("theme", "dark");
+    expect(panel.shadowRoot!.querySelector("neocortex-message")!.getAttribute("theme")).toBe("dark");
+    chat.remove();
+  });
+
+  it("re-exports inner parts so the page can style bubbles", () => {
+    const chat = document.createElement("neocortex-chat");
+    document.body.append(chat);
+    const panel = chat.shadowRoot!.querySelector("neocortex-chat-panel")!;
+    expect(panel.getAttribute("exportparts")).toContain("bubble");
+    const message = (panel as NeocortexChatPanel).addMessage({ sender: "player", text: "Hi" });
+    expect(message.getAttribute("exportparts")).toBe("name, bubble");
+    chat.remove();
+  });
+
+  it("treats push-to-talk=\"false\" as off", () => {
+    const chat = document.createElement("neocortex-chat");
+    chat.setAttribute("push-to-talk", "false");
+    document.body.append(chat);
+    expect(chat.shadowRoot!.querySelector("neocortex-mic-button")!.hasAttribute("push-to-talk")).toBe(false);
+    chat.setAttribute("push-to-talk", "");
+    expect(chat.shadowRoot!.querySelector("neocortex-mic-button")!.hasAttribute("push-to-talk")).toBe(true);
+    chat.remove();
+  });
+
+  it("lets the page suppress the built-in microphone notice", async () => {
+    const chat = document.createElement("neocortex-chat");
+    document.body.append(chat);
+    chat.addEventListener("nx-error", (event) => event.preventDefault());
+    const mic = chat.shadowRoot!.querySelector("neocortex-mic-button")!;
+    mic.dispatchEvent(new CustomEvent("nx-error", { detail: { error: new Error("no mic") }, bubbles: true, composed: true, cancelable: true }));
+    await flush();
+    const panel = chat.shadowRoot!.querySelector("neocortex-chat-panel")!;
+    expect(panel.shadowRoot!.querySelectorAll("neocortex-message")).toHaveLength(0);
+    chat.remove();
+  });
+
+  it("switches existing elements to a default client set later", () => {
+    setDefaultClient(null);
+    const panel = document.createElement("neocortex-chat-panel");
+    const before = panel.client;
+    const later = new NeocortexClient({ baseUrl: "/later" });
+    setDefaultClient(later);
+    expect(panel.client).not.toBe(before);
+    expect(panel.client).toBe(later);
+    setDefaultClient(null);
+  });
+
   it("neocortex-chat runs a turn through its client and shows the reply", async () => {
     const upstream = fakeUpstream({ chat: () => chatReply("s1", [{ text: "Hello from Cora", emotion: "HAPPY" }]) });
     setDefaultClient(new NeocortexClient({ baseUrl: "https://api.test/v3", fetch: upstream.fetch }));

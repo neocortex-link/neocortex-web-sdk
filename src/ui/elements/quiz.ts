@@ -1,6 +1,7 @@
 import { QuizAgent } from "../../client/QuizAgent";
 import type { QuizLeaderboardEntry, QuizQuestion } from "../../core/types";
 import { NeocortexElement } from "../base";
+import { INPUT_PARTS, MIC_PARTS, PANEL_PARTS } from "./chat";
 import type { NeocortexMicButton } from "./mic";
 import type { NeocortexChatPanel } from "./primitives";
 
@@ -41,7 +42,7 @@ footer neocortex-text-input { flex: 1 1 12rem; min-width: 0; }
  * ```
  */
 export class NeocortexQuiz extends NeocortexElement {
-  static observedAttributes = ["endpoint", "character-id", "question-set-id", "voice", "heading", "question-count"];
+  static observedAttributes = ["endpoint", "character-id", "question-set-id", "voice", "heading", "question-count", "theme"];
 
   private _agent: QuizAgent | null = null;
   private offs: Array<() => void> = [];
@@ -60,7 +61,7 @@ export class NeocortexQuiz extends NeocortexElement {
         <span class="count" part="count" aria-live="polite"></span>
         <div class="progress" part="progress" role="progressbar" aria-label="Quiz progress" aria-valuemin="0"><span></span></div>
       </header>
-      <neocortex-chat-panel part="panel"></neocortex-chat-panel>
+      <neocortex-chat-panel part="panel" exportparts="${PANEL_PARTS}"></neocortex-chat-panel>
       <ol class="board" part="leaderboard" hidden aria-label="Leaderboard"></ol>
       <section class="question" part="question" hidden aria-live="polite">
         <p></p>
@@ -72,14 +73,15 @@ export class NeocortexQuiz extends NeocortexElement {
       </div>
       <button class="start primary" part="start" type="button">Start quiz</button>
       <footer part="footer">
-        <neocortex-text-input part="input" placeholder="Your answer…"></neocortex-text-input>
-        <neocortex-mic-button part="mic"></neocortex-mic-button>
+        <neocortex-text-input part="input" exportparts="${INPUT_PARTS}" placeholder="Your answer…"></neocortex-text-input>
+        <neocortex-mic-button part="mic" exportparts="${MIC_PARTS}"></neocortex-mic-button>
         <button type="button" class="hint" part="hint">Hint</button>
         <button type="button" class="pass" part="pass">Pass</button>
       </footer>`,
     );
     this.$("h2").textContent = this.getAttribute("heading") ?? "Quiz";
     this.setAttribute("state", "idle");
+    this.syncTheme();
 
     this.$(".start").addEventListener("click", () => {
       this.agent.primeAudio();
@@ -120,7 +122,8 @@ export class NeocortexQuiz extends NeocortexElement {
 
   attributeChangedCallback(name: string, previous: string | null, value: string | null) {
     if (!this.root.firstChild || previous === value) return;
-    if (name === "voice" && this._agent) this._agent.voice = this.flag("voice");
+    if (name === "theme") this.syncTheme();
+    else if (name === "voice" && this._agent) this._agent.voice = this.flag("voice");
     else if (name === "heading") this.$("h2").textContent = value ?? "Quiz";
     else this.resetAgent();
   }

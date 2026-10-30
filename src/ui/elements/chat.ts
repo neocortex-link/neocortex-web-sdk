@@ -10,6 +10,11 @@ const SPEAKER_ON = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden=
 const SPEAKER_OFF = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6"/><path d="m16 9 6 6"/></svg>`;
 const RESET = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>`;
 
+/** Inner parts re-exported, so `neocortex-chat::part(bubble)` reaches the bubbles from the page. */
+export const PANEL_PARTS = "list, empty, thinking, dots, message, player, character, notice, name, bubble";
+export const INPUT_PARTS = "form, input: input-field, send";
+export const MIC_PARTS = "button: mic-button";
+
 const CHAT_CSS = /* css */ `
 :host { display: flex; flex-direction: column; height: 32rem; max-height: 100%; min-width: 0;
   background: var(--_bg); border: 1px solid var(--_border); border-radius: var(--_radius); overflow: hidden; }
@@ -30,7 +35,7 @@ footer neocortex-text-input { flex: 1; min-width: 0; }
  * `nx-response`).
  */
 abstract class ConversationElement<A extends Conversation> extends NeocortexElement {
-  static observedAttributes = ["endpoint", "voice", "push-to-talk", "placeholder", "heading", "language"];
+  static observedAttributes = ["endpoint", "voice", "push-to-talk", "placeholder", "heading", "language", "theme"];
 
   protected _agent: A | null = null;
   private offs: Array<() => void> = [];
@@ -65,7 +70,9 @@ abstract class ConversationElement<A extends Conversation> extends NeocortexElem
       if (this._agent) this._agent.voice = this.flag("voice");
       this.updateVoiceButton();
     } else if (name === "push-to-talk") {
-      this.mic.toggleAttribute("push-to-talk", this.hasAttribute("push-to-talk"));
+      this.mic.toggleAttribute("push-to-talk", this.flag("push-to-talk"));
+    } else if (name === "theme") {
+      this.syncTheme();
     } else if (name === "placeholder") {
       this.input.setAttribute("placeholder", value ?? "");
     } else if (name === "heading") {
@@ -119,17 +126,18 @@ abstract class ConversationElement<A extends Conversation> extends NeocortexElem
         <button part="voice-toggle" class="voice" type="button"></button>
         <button part="reset" class="reset" type="button" title="New conversation" aria-label="New conversation">${RESET}</button>
       </header>
-      <neocortex-chat-panel part="panel"></neocortex-chat-panel>
+      <neocortex-chat-panel part="panel" exportparts="${PANEL_PARTS}"></neocortex-chat-panel>
       <footer part="footer">
-        <neocortex-text-input part="input"></neocortex-text-input>
-        <neocortex-mic-button part="mic"></neocortex-mic-button>
+        <neocortex-text-input part="input" exportparts="${INPUT_PARTS}"></neocortex-text-input>
+        <neocortex-mic-button part="mic" exportparts="${MIC_PARTS}"></neocortex-mic-button>
       </footer>`,
     );
     this.$("h2").textContent = this.getAttribute("heading") ?? "";
     this.panel.setAttribute("empty-text", this.emptyText());
     if (this.hasAttribute("placeholder")) this.input.setAttribute("placeholder", this.getAttribute("placeholder")!);
-    if (this.hasAttribute("push-to-talk")) this.mic.setAttribute("push-to-talk", "");
+    if (this.flag("push-to-talk")) this.mic.setAttribute("push-to-talk", "");
     if (this.getAttribute("mic") === "false") this.mic.hidden = true;
+    this.syncTheme();
 
     this.$(".voice").addEventListener("click", () => {
       this.setAttribute("voice", String(!this.flag("voice")));
@@ -149,9 +157,14 @@ abstract class ConversationElement<A extends Conversation> extends NeocortexElem
     });
     this.mic.addEventListener("nx-error", (event) => {
       const detail = (event as CustomEvent<{ error: Error; reason?: string }>).detail;
-      this.panel.addMessage({
-        sender: "notice",
-        text: detail.reason === "permission" ? "Microphone access was blocked." : detail.error.message,
+      // The event is still on its way out to the page; wait for it so a page
+      // listener can call preventDefault() and show its own message instead.
+      setTimeout(() => {
+        if (event.defaultPrevented) return;
+        this.panel.addMessage({
+          sender: "notice",
+          text: detail.reason === "permission" ? "Microphone access was blocked." : detail.error.message,
+        });
       });
     });
     this.updateVoiceButton();

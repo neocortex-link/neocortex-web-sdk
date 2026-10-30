@@ -2,6 +2,17 @@
 
 All notable changes to this package are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-10-30
+
+0.2.0 was tagged on GitHub but never published to npm, so this is the first npm release with the `nx` names below.
+
+### Fixed
+- **`theme`:** setting it on `<neocortex-chat>`, `<neocortex-group-chat>`, `<neocortex-quiz>` or `<neocortex-chat-panel>` now reaches the elements inside, so bubbles and inputs match the outer element.
+- **`::part()`:** nested parts are re-exported, so the page can style `::part(bubble)`, `::part(name)`, `::part(input-field)`, `::part(mic-button)` and others through the composite elements.
+- **`setDefaultClient()`:** it now applies to elements already on the page that have no `endpoint` attribute.
+- **Microphone errors:** calling `preventDefault()` on an `nx-error` event from the microphone now suppresses the chat's built-in notice.
+- **`push-to-talk="false"`:** it now turns push-to-talk off, like `voice="false"`.
+
 ## [0.2.0] - 2026-10-30
 
 ### Changed (breaking)
